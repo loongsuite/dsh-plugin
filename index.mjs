@@ -94,8 +94,11 @@ export default function apply(ctx) {
   const root = dataDir();
   const outputDir = logDir(root);
   const hasCollector = collectorDetected(root);
-  ensureDir(outputDir);
-
+  try {
+    ensureDir(outputDir);
+  } catch (error) {
+    logger.warn('failed to ensure dsh telemetry directory=%s error=%s', outputDir, String(error));
+  }
   const owner = {};
   globalThis[LOAD_MARKER] = owner;
   ctx.effect(() => () => {
