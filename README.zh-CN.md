@@ -1,85 +1,176 @@
-# pilot-dsh
+# DeepSeek Harness 的 LoongSuite 可观测插件
 
 [English](README.md) | 简体中文
 
-[LoongSuite Pilot](https://github.com/alibaba/loongsuite-pilot) 的
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）插件，npm 包名为
-`dsh-plugin-loongsuite`。
+`@loongsuite/dsh-plugin-loongsuite` 是面向
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）的独立开源可观测
+插件。它观测 DSH 原生的会话、Agent 循环、LLM 流和工具生命周期，将其转换为 OpenTelemetry
+GenAI Trace 与 Metric，并通过标准 OTLP/HTTP Protobuf 上报到任意兼容后端。
 
-> **当前状态：仅有脚手架。** 本仓库目前只包含项目元数据，插件实现尚未提交。提 PR 前请先看
-> [目录规划](#目录规划) 和 [CONTRIBUTING.md](CONTRIBUTING.md)。
+LoongSuite 是阿里开源的统一可观测采集体系。本仓库是它面向 DSH 的原生集成；尽管仓库名称如此，
+插件**不依赖也不要求安装 LoongSuite Pilot**，不需要 sidecar、本地 JSONL 采集点或阿里云后端。
 
-## 它做什么
+> 当前状态：Beta 版本。可通过 `@loongsuite/dsh-plugin-loongsuite@beta` 安装 npm Beta 包；DSH 插件市场
+> 条目尚未发布。
 
-这个插件是一个**采集点（tap）**，不是采集器。它订阅 harness 的 `session/created` 与
-`session/event` 事件流，把每条事件按会话追加写入本机的 JSONL 文件。后续的一切——归一成 GenAI
-事件模型、构建 OpenTelemetry 调用链、统计 token 与成本、导出到文件 / SLS / HTTP / OTLP——都由
-LoongSuite Pilot 采集器完成，它读取这些文件。
+## 数据模型
 
+```text
+DSH session/event + llm/stream
+                │
+                ▼
+          生命周期协调器
+                │
+                ▼
+   LoongSuite GenAI OTel 工具库
+                │
+                ▼
+ 私有 TracerProvider + MeterProvider
+                │  OTLP/HTTP Protobuf
+                ▼
+   任意 OpenTelemetry 兼容后端
 ```
-dsh 会话事件 ──▶ 本插件 ──▶ ~/.loongsuite-pilot/logs/dsh/dsh-<sid>.jsonl
-                                        │
-                                        ▼
-                              LoongSuite Pilot 采集器
-                        （GenAI 事件、OTLP 调用链、本地大盘）
+
+DSH 的每一轮对话生成一条调用链：
+
+```text
+ENTRY
+└── AGENT
+    └── STEP
+        ├── LLM
+        └── TOOL
 ```
 
-这样切分的好处：进程内只留一个文件追加监听器、零依赖；采集器的生命周期也不会被绑死在某一个
-`dsh` 会话上。
+每次真实 LLM 调用都会生成独立的 `LLM` span，因此重试会保留为同一个 STEP 下的多次尝试。工具调用
+通过 DSH call ID 与结果关联。错误、中止、不完整的流以及插件卸载都会以错误状态关闭未结束 span，不会
+留下悬挂链路。Subagent 会话生成独立 trace，并携带 DSH 父会话和委派层级属性。
 
-## 安装
+插件还会上报标准的 `gen_ai.client.operation.duration` 与 `gen_ai.client.token.usage` 指标。它不
+上报 OpenTelemetry Log，可与独立的 DSH 日志导出插件同时使用。
 
-> 尚未发布。下面的命令会在实现和首个 npm 版本落地后生效，此处先记录下来以固定对外接口。
+GenAI Invocation 构建与语义属性由
+[`@loongsuite/otel-util-genai`](https://www.npmjs.com/package/@loongsuite/otel-util-genai) SDK 提供。
+
+## 兼容范围
+
+| 组件 | 支持范围 | 已完整验证版本 |
+| --- | --- | --- |
+| DeepSeek Harness | `>=0.1.0-rc.6 <0.2.0` | `0.1.0-rc.6` 的 headless 与 Web profile |
+| Node.js | `>=22.19.0` | macOS 上的 `22.19`、`24.19` 和 `25.9` |
+
+不支持早于 `0.1.0-rc.6` 的 DSH RC 版本。Beta 验证以 DSH 当前最新发布版为准，不会仅凭
+bundle 能成功组合就宣称具备完整运行时兼容性。
+
+## 安装与使用
+
+Beta 阶段，在需要观测的每个 DSH profile 中安装 beta tag：
 
 ```sh
-dsh plugin --profile web add dsh-plugin-loongsuite
+dsh plugin --profile web add @loongsuite/dsh-plugin-loongsuite@beta
+dsh plugin --profile headless add @loongsuite/dsh-plugin-loongsuite@beta
 ```
 
-然后安装采集器，它负责把记录下来的事件变成调用链和本地大盘：
+本地开发时，把包名换成本仓库的绝对路径：
 
 ```sh
-curl -fsSL https://loongcollector-community-edition.oss-cn-shanghai.aliyuncs.com/loongsuite-pilot/installer.sh \
-  -o /tmp/loongsuite-pilot-installer.sh && bash /tmp/loongsuite-pilot-installer.sh install
+dsh plugin --profile web add /absolute/path/to/pilot-dsh
 ```
 
-已经先装了采集器的用户不需要这个包：Pilot 会通过自己的 `dsh-yaml-patch` 部署策略注入一份等价的
-采集点。本包存在的意义是让插件能在 harness 内部被发现和安装——通过
-[awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) 列表和
-[dsh-market](https://github.com/dsh-market/dsh-market) 插件市场——而不必先装采集器。
+设置服务名和 OTLP/HTTP Collector 地址，然后照常启动该 profile：
 
-## 目录规划
+```sh
+export OTEL_SERVICE_NAME=dsh-agent
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+export OTEL_EXPORTER_OTLP_HEADERS='authorization=Bearer%20your-token'
 
-| 路径 | 作用 |
-| --- | --- |
-| `package.json` | 必须声明 `dsh.bundle` 并指向 `./cordis.patch.yml`。缺少它，`dsh plugin add` 装不上，awesome-dsh-plugin 也不会收录。 |
-| `cordis.patch.yml` | profile 启用该 bundle 时应用的配置层。其中的 row `id` **必须**是 `loongsuite-pilot-observability`。 |
-| `index.mjs` | 插件入口——一个 Cordis 插件，注册两个监听器并追加写 JSONL。零运行时依赖、无构建步骤、无安装脚本。 |
+dsh --profile web
+# 或：dsh --profile headless "总结这个工作区"
+```
 
-需要移植的行为在采集器仓库的
-[`assets/plugins/dsh/plugin.mjs`](https://github.com/alibaba/loongsuite-pilot/blob/main/assets/plugins/dsh/plugin.mjs)，
-那份代码已经在真实 `dsh` 运行下验证过。此外这里还需要两处补充，细节见
-[CONTRIBUTING.md](CONTRIBUTING.md)：重复加载守卫，以及采集器缺失时的引导提示。
+共享 endpoint 会自动补成 `/v1/traces` 与 `/v1/metrics`。未配置 endpoint 时，导出器使用
+OpenTelemetry 标准默认值。
 
-## 数据与隐私
+## 插件配置
 
-- **只写本地。** 插件把文件写在 `$LOONGSUITE_PILOT_DATA_DIR`（默认 `~/.loongsuite-pilot/`）下，
-  不发起任何网络连接。除非用户安装了采集器并显式配置了导出目标，数据不会离开本机。
-- **文件权限。** 日志目录以 `0700` 创建，每个文件为 `0600`。
-- **采集即脱敏。** 键名匹配 `TOKEN`、`SECRET`、`PASSWORD`、`CREDENTIAL`、`COOKIE`、`API_KEY`
-  的字段在落盘前被丢弃。
-- **记录了什么。** 会话、轮次、模型步骤与工具事件，其中包含 prompt 和工具参数正文。这正是调用链
-  有价值的原因，也正是这些文件只留本地并限制权限的原因。内容采集策略与导出侧的密钥脱敏在采集器中
-  配置，见其[脱敏文档](https://github.com/alibaba/loongsuite-pilot/blob/main/docs/masking.md)。
-- **未占用 harness 的 telemetry seam。** 本插件监听事件总线，而不是注册成 harness 的
-  `sessionTelemetry` 后端。因此它可以与官方 OTLP-logs 等遥测后端共存，但也不会出现在 harness
-  自己的数据共享声明里。请把本文档视为该声明。
+大部分部署只需环境变量。也可以修改 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`（默认位于
+`~/.dsh`）中的插件配置：
 
-## 相关项目
+```yaml
+- id: loongsuite-observability
+  config:
+    endpoint: http://localhost:4318
+    serviceName: dsh-agent
+    headers:
+      authorization: Bearer your-token
+    resourceAttributes:
+      deployment.environment.name: development
+    captureContent: false
+    exportMetrics: true
+```
 
-- [alibaba/loongsuite-pilot](https://github.com/alibaba/loongsuite-pilot) —— 采集器：agent 发现、
-  统一 GenAI 事件模型、JSONL / SLS / HTTP / OTLP 输出、本地大盘
-- [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) —— 本插件所观测的 harness
-- [贡献指南](CONTRIBUTING.md) —— 实现必须满足的约束
+显式插件配置的优先级高于环境变量。
+
+如果不想修改 profile，可在启动 DSH 前通过 GenAI 正文采集模式开启：
+
+```sh
+export OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=SPAN_ONLY
+dsh --profile web
+```
+
+| 配置项 | 默认值 | 含义 |
+| --- | --- | --- |
+| `enabled` | `true` | 不卸载 bundle，直接停止采集。 |
+| `endpoint` | 未设置 | OTLP/HTTP 公共基地址；插件自动追加 signal 路径。 |
+| `traceEndpoint` / `metricEndpoint` | 未设置 | 完整的单 signal 地址；优先于 `endpoint`。 |
+| `headers` | `{}` | 同时添加到两个导出器的请求头。 |
+| `serviceName` | `OTEL_SERVICE_NAME` 或 `deepseek-harness` | OpenTelemetry `service.name`。 |
+| `resourceAttributes` | `{}` | 额外的字符串类型 Resource 属性。 |
+| `captureContent` | 环境变量配置或 `false` | 上报提示词、回复、工具定义、参数和结果正文。 |
+| `contentMaxChars` | `128000` | 每个正文属性序列化后保留的最大字符数。 |
+| `exportMetrics` | `true` | 上报 LLM 耗时和 token 指标。 |
+| `maxExportBatchSize` | `512` | 每批最多上报的 span 数。 |
+| `maxQueueSize` | `2048` | 最多排队的 span 数，不能小于 batch size。 |
+| `traceExportIntervalMs` | `5000` | Trace 批量导出间隔。 |
+| `metricExportIntervalMs` | `60000` | Metric 导出间隔。 |
+| `exportTimeoutMs` | `30000` | OTLP 导出超时。 |
+| `debug` | `false` | 通过 DSH logger 输出额外的插件生命周期诊断。 |
+
+支持以下 OpenTelemetry 标准环境变量：
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT`
+- `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` 和 `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`
+- `OTEL_EXPORTER_OTLP_HEADERS`
+- `OTEL_EXPORTER_OTLP_TRACES_HEADERS` 和 `OTEL_EXPORTER_OTLP_METRICS_HEADERS`
+- `OTEL_SERVICE_NAME`
+- `OTEL_RESOURCE_ATTRIBUTES`
+- `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`（未显式配置 `captureContent` 时，`SPAN_ONLY` 或 `SPAN_AND_EVENT` 开启 span 正文）
+
+Header 与 Resource 值使用标准的逗号分隔、百分号编码 `key=value` 格式。
+
+## 隐私与运行时行为
+
+默认不采集正文：提示词、回复、工具 schema、参数和结果不会进入 span，但结构元数据和 token 用量仍会
+上报。启用 `captureContent`，或将正文采集环境变量设为 `SPAN_ONLY` / `SPAN_AND_EVENT` 后，源码、凭据、
+个人数据或其他敏感内容可能被发送到已配置后端；启用前应先确认后端的留存和访问控制策略。如果某个
+profile 必须忽略进程环境并始终禁止正文采集，请显式配置 `captureContent: false`。
+
+插件持有私有 OpenTelemetry Provider，不会替换 DSH 或其他库的全局 Provider；监听器和 Provider
+也会随 DSH 插件生命周期释放和 flush。插件附加到已运行或 HMR 重载的 profile 时，只接管现有会话的
+身份，并从下一次原生 `turn/start` 开始采集，不会重放历史事件或生成重复链路。
+
+## 开发
+
+需要 Node.js 22.19 或更高版本以及 pnpm。
+
+```sh
+pnpm install
+pnpm run check
+pnpm test
+pnpm run build
+pnpm pack
+```
+
+实现约束与发布检查清单见[贡献指南](CONTRIBUTING.zh-CN.md)。
 
 ## 许可证
 

@@ -11,6 +11,7 @@ pnpm-debug.log*
 # local runtime / test output
 *.jsonl
 coverage/
+dist/
 .tmp/
 
 # editors and OS

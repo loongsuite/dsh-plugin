@@ -2,110 +2,71 @@
 
 [English](CONTRIBUTING.md) | 简体中文
 
-感谢参与这个插件的建设。仓库刻意保持很小：一个 Cordis 插件、一个 patch 文件、一份 manifest。难点
-基本不在代码量，而在下面这些约束上，实现前请先读一遍。
+感谢改进这个独立的 DeepSeek Harness 可观测插件。本包运行在 DSH 进程内并直接向 OTLP 后端发送
+遥测数据，必须保持对外部采集器、文件采集点和厂商专用上报 API 的独立性。
 
-## 硬性要求
+## 仓库结构
 
-**1. `package.json` 必须声明 `dsh.bundle`。**
+| 路径 | 作用 |
+| --- | --- |
+| `cordis.patch.yml` | 插入插件 row 的 DSH bundle 层。 |
+| `src/index.ts` | Cordis 入口、监听器注册和生命周期清理。 |
+| `src/coordinator.ts` | DSH 生命周期到 GenAI span 树的协调。 |
+| `src/mapping.ts` | DSH 消息、工具、结束原因、用量和正文映射。 |
+| `src/telemetry.ts` | 私有 OpenTelemetry Provider 与 OTLP Exporter。 |
+| `src/config.ts` | 对外配置 Schema 和默认值。 |
+| `tests/` | 映射、协调器、包结构和真实 OTLP 传输测试。 |
 
-```jsonc
-{
-  "name": "dsh-plugin-loongsuite",
-  "type": "module",
-  "main": "index.mjs",
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
-}
-```
+## 实现不变量
 
-没有 `dsh.bundle`，包只会作为普通依赖安装、不激活任何配置层，`dsh plugin add` 也无法启用它。只声明
-`dsh.client` 是社区插件列表最常见的被拒原因——那是给带前端 UI 的包用的，单独存在无法安装。
+- `package.json#dsh.bundle.patch` 必须保持指向 `./cordis.patch.yml`，patch row ID 必须保持为
+  `loongsuite-observability`。
+- 按 Cordis 约定导出具名的 `name`、`inject`、`Config` 与 `apply`；当前 DSH Loader 契约和包测试
+  已固定这一形式。
+- `llm/stream` waterfall 必须且只能调用一次 `next()`，下游异常必须原样抛出。遥测故障可以告警，
+  但不能改变 DSH 的模型或工具执行行为。
+- 每个 DSH 实时 turn 建立一棵 `ENTRY → AGENT → STEP → LLM/TOOL` 树。每次重试都是独立的 LLM
+  子 span，不能从已持久化的 assistant chunk 反推 LLM span。
+- OpenTelemetry Provider 必须私有，不能调用全局 Provider 注册 API。
+- 正文采集默认保持关闭。未配置 `captureContent` 时，只有文档约定的 `SPAN_ONLY` 与
+  `SPAN_AND_EVENT` 环境变量模式可以开启 span 正文；显式配置 `captureContent: false` 时必须始终
+  覆盖进程环境。
+- 结构 span 使用 DSH 事件时间戳；LLM 首 token 延迟使用单调时钟。
+- 接管已有会话时不能重放 `session.events`；HMR 不能制造重复 trace。
+- 先关闭未完成的子 span，再关闭父 span；插件卸载时释放全部监听器和 Provider。
+- 输出保持后端无关：只使用标准 OTLP/HTTP Protobuf 和标准 OTel 环境变量。
 
-**2. `repository.url` 必须指向本仓库。**
+## 开发流程
 
-```jsonc
-"repository": { "type": "git", "url": "git+https://github.com/loongsuite/pilot-dsh.git" }
-```
-
-社区列表会拿这里声明的包名去 npm 查，只有当已发布包的 `repository` 字段指回本 GitHub 仓库时才认。
-对不上会让用户静默降级为下载整个仓库的 GitHub tarball 安装。
-
-**3. patch row 的 id 必须是 `loongsuite-pilot-observability`。**
-
-```yaml
-- insert:
-    - id: loongsuite-pilot-observability
-      name: dsh-plugin-loongsuite
-```
-
-这个 id 与采集器共享：`alibaba/loongsuite-pilot` 的 `agents.d/dsh.json` 里 `dshYamlPatch.entryId`
-就是同一个值。这里改掉，就意味着采集器注入的那份和市场安装的那份不再认得对方是同一行。
-
-**4. 零运行时依赖、无构建步骤、无安装脚本。**
-
-pnpm 10 起默认阻止安装期构建脚本，插件市场会把它变成一次需要用户逐包授权的确认。需要 `postinstall`、
-原生模块或编译步骤的插件，会把一键安装变成弹窗，也过不了社区列表的自动安装测试。这个采集点只需要
-`node:fs`、`node:path`、`node:os`。
-
-**5. 落盘格式要与采集器保持兼容。**
-
-采集器读取 `$LOONGSUITE_PILOT_DATA_DIR/logs/dsh/` 下的 `dsh-*.jsonl`，期望的是
-[`assets/plugins/dsh/plugin.mjs`](https://github.com/alibaba/loongsuite-pilot/blob/main/assets/plugins/dsh/plugin.mjs)
-产出的 `sid` / `seq` / `time` / `type` / `data` 结构。要改字段名或结构，得先在采集器侧改
-`src/inputs/dsh-log/` 和 `src/inputs/dsh/dsh-event-transform.ts` 并先合并。
-
-**6. 沿用已验证的插件导出形式。**
-
-采集器那份采集点用的是 `export default function apply(ctx) { … }`，这个形式已经在真实 `dsh` 运行下
-验证过。请沿用它，不要未经测试就换成对象插件形式（`export const name` + `export function apply`）。
-
-## 移植时需要补的两处
-
-**重复加载守卫。** 同一个采集点可能通过两条独立路径被加载两次：采集器往机器级的
-`~/.dsh/cordis.patch.yml` 写一个带 marker 的块、其 row 指向本地 `file://` 路径；而市场安装会在
-profile 层加一行指向 npm 包名。这是两个不同的模块 specifier，模块内的标志位抓不到——要用进程级标记
-（例如 `globalThis[Symbol.for('...')]`），第二次加载时打一条 warning 并空转返回。少了这个，两个实例
-会往同一个会话文件里追加：`(sid, seq)` 出现重复行，下游 token 统计翻倍。
-
-**采集器缺失时的提示。** 从插件市场装进来的人通常还没有采集器。插件会老老实实记录没人消费的事件，
-用户的体感就是"装了没反应"。请探测采集器（数据目录或命令），缺失时打**一条**日志（只打一次，不要每
-会话都打），说明输出目录和采集器的安装命令。
-
-## 本地验证
+使用 Node.js 22.19 或更高版本：
 
 ```sh
-dsh plugin --profile web add /path/to/pilot-dsh   # 或已发布的包名
-dsh web
+pnpm install
+pnpm run check
+pnpm test
+pnpm run build
+pnpm pack
 ```
 
-然后确认：
+测试必须覆盖成功和失败路径。生命周期映射发生变化时，至少应验证父子 ID、单一 trace ID、重试与错误
+状态、token 记账、默认隐私关闭行为和 Provider shutdown。传输层变化必须保留本地 HTTP 测试，确保
+`/v1/traces` 与 `/v1/metrics` 收到非空 Protobuf 请求。
 
-- 插件有加载日志，日志目录存在且权限为 `0700`
-- 会话过程中 `~/.loongsuite-pilot/logs/dsh/dsh-<sid>.jsonl` 在增长，文件权限为 `0600`
-- 同时装了采集器时，没有重复的 `(sid, seq)` 行
-- 键名匹配 `TOKEN` / `SECRET` / `PASSWORD` / `CREDENTIAL` / `COOKIE` / `API_KEY` 的字段从不出现
-- `dsh plugin --profile web remove …` 之后没有残留
+提交发布变更前，应把打包后的 tarball 安装进一个隔离的当前版本 DSH profile，检查
+`dsh --profile <name> --dump-config`，并确认插件激活时没有由本插件造成的 peer dependency 或安装脚本
+必需授权错误。
 
-长会话值得单独测一次：采集点会记录每一条事件（包含全部 assistant chunk），要看清 JSONL 的增长速度，
-并确认你对外给出的数字。
+## 发布与市场收录
 
-## 提交收录（首个 npm 版本发布之后）
+首次 npm 发布前：
 
-进入 [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) 列表是插件能在
-harness 内置市场里被安装的前提。做法是提一个 PR，在 `README.md` 与 `README.zh.md` **两个文件**的
-`Development & Runtime` / `开发与运行时` 分类下各加一行：
+1. 在干净 checkout 中运行 `pnpm run check`、`pnpm test` 和 `pnpm pack`。
+2. 检查 tarball：应包含构建后的 `dist/`、bundle patch、package 元数据、许可证和两份 README，不能
+   包含源码测试或 `node_modules`。
+3. 分别使用 DSH 的 `web` 与 `headless` profile 验证包。
+4. 以 public access 发布 `@loongsuite/dsh-plugin-loongsuite`。
+5. 按社区仓库当时的贡献说明，将本仓库提交到 DSH 插件列表/市场，并添加 `dsh-plugin` GitHub topic。
 
-```markdown
-- [loongsuite/pilot-dsh](https://github.com/loongsuite/pilot-dsh) — 一句话描述，以句号结尾。
-```
-
-URL 是关联两个语言文件的键，必须逐字符一致，否则对方的构建会失败。描述只说功能——该列表拒绝营销词。
-仓库还需要 `dsh-plugin` topic，建议在 `package.json` 存在之后再加：生态里的自动扫描器会把"有该
-topic 但没有插件 manifest"的仓库判为非插件。
-
-## 问题反馈
-
-关于本插件的问题请在本仓库提 issue。采集器的事件模型、导出器、大盘相关问题请提到
-[alibaba/loongsuite-pilot](https://github.com/alibaba/loongsuite-pilot/issues)；harness 本身的问题
-请去它的 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)——那个项目
-关闭了 issues，也不接受外部 pull request。
+中英文用户文档应保持行为含义一致。Harness 本身的问题请到
+[DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)，插件缺陷请在
+本仓库反馈。

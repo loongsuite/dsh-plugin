@@ -1,0 +1,5 @@
+# Standalone LoongSuite observability for DeepSeek Harness. This bundle owns
+# its OTLP pipeline and does not require LoongSuite Pilot or an on-disk tap.
+- insert:
+    - id: loongsuite-observability
+      name: '@loongsuite/dsh-plugin-loongsuite'

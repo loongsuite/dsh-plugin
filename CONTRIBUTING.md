@@ -2,126 +2,76 @@
 
 English | [简体中文](CONTRIBUTING.zh-CN.md)
 
-Thanks for helping build this plugin. The repository is intentionally small: one Cordis plugin, one
-patch file, one manifest. Most of the difficulty is in the constraints below rather than in the
-code, so please read them before implementing.
+Thank you for improving the standalone DeepSeek Harness observability plugin. This package runs in
+the DSH process and sends telemetry directly to an OTLP backend. It must remain independent of
+external collectors, file taps, and vendor-specific ingestion APIs.
 
-## Hard requirements
+## Repository layout
 
-**1. `package.json` must declare `dsh.bundle`.**
+| Path | Purpose |
+| --- | --- |
+| `cordis.patch.yml` | DSH bundle layer that inserts the plugin row. |
+| `src/index.ts` | Cordis entry point, listener registration, and lifecycle cleanup. |
+| `src/coordinator.ts` | DSH lifecycle to GenAI span-tree coordination. |
+| `src/mapping.ts` | DSH message, tool, finish-reason, usage, and content mapping. |
+| `src/telemetry.ts` | Private OpenTelemetry providers and OTLP exporters. |
+| `src/config.ts` | Public configuration schema and defaults. |
+| `tests/` | Mapping, coordinator, package, and real OTLP transport tests. |
 
-```jsonc
-{
-  "name": "dsh-plugin-loongsuite",
-  "type": "module",
-  "main": "index.mjs",
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
-}
-```
+## Implementation invariants
 
-Without `dsh.bundle` the package installs as a plain dependency, activates no configuration layer,
-and `dsh plugin add` cannot enable it. Declaring only `dsh.client` is the single most common reason
-plugin submissions are rejected from the community registry — `dsh.client` is for packages that
-ship browser UI, and on its own it is not installable.
+- Keep `package.json#dsh.bundle.patch` pointing to `./cordis.patch.yml`, and keep the patch row ID
+  `loongsuite-observability`.
+- Export Cordis's named `name`, `inject`, `Config`, and `apply` bindings. The current DSH loader
+  contract and package test pin this shape.
+- The `llm/stream` waterfall must call `next()` exactly once and must rethrow downstream errors
+  unchanged. Telemetry failures may warn, but must never change DSH model or tool behavior.
+- Build one `ENTRY → AGENT → STEP → LLM/TOOL` tree per live DSH turn. Each retry is a separate LLM
+  child; do not infer LLM spans from persisted assistant chunks.
+- Keep OpenTelemetry providers private. Do not call global provider registration APIs.
+- Leave content capture off by default. When `captureContent` is omitted, only the documented
+  `SPAN_ONLY` and `SPAN_AND_EVENT` environment modes may enable span content. An explicit
+  `captureContent: false` must always override the process environment.
+- Use DSH event timestamps for structural spans and monotonic timing for LLM first-token latency.
+- Do not replay `session.events` when adopting an existing session; HMR must not duplicate traces.
+- Close incomplete children before parents, and dispose every listener and provider on plugin
+  shutdown.
+- Keep output backend-neutral: standard OTLP/HTTP protobuf only, with standard OTel environment
+  variables.
 
-**2. `repository.url` must point at this repository.**
+## Development workflow
 
-```jsonc
-"repository": { "type": "git", "url": "git+https://github.com/loongsuite/pilot-dsh.git" }
-```
-
-The community registry probes npm for the package name declared here and accepts it only when the
-published package's `repository` field points back at this GitHub repository. A mismatch silently
-downgrades users to a full-repository GitHub tarball install.
-
-**3. The patch row id must be `loongsuite-pilot-observability`.**
-
-```yaml
-- insert:
-    - id: loongsuite-pilot-observability
-      name: dsh-plugin-loongsuite
-```
-
-This id is shared with the collector: `agents.d/dsh.json` in `alibaba/loongsuite-pilot` sets
-`dshYamlPatch.entryId` to the same value. Changing it here means the collector-injected tap and the
-market-installed tap no longer recognize each other as the same row.
-
-**4. Zero runtime dependencies, no build step, no install scripts.**
-
-pnpm 10 and later block install-time build scripts by default, and the plugin market surfaces that
-as an explicit per-package approval the user has to grant. A plugin that needs `postinstall`, native
-modules, or a compile step turns a one-click install into a prompt, and fails the community
-registry's automated install test. The tap needs only `node:fs`, `node:path` and `node:os`.
-
-**5. Keep the on-disk format compatible with the collector.**
-
-The collector consumes `dsh-*.jsonl` from `$LOONGSUITE_PILOT_DATA_DIR/logs/dsh/` and expects the
-`sid` / `seq` / `time` / `type` / `data` shape produced by
-[`assets/plugins/dsh/plugin.mjs`](https://github.com/alibaba/loongsuite-pilot/blob/main/assets/plugins/dsh/plugin.mjs).
-Renaming or restructuring those fields requires a matching change to `src/inputs/dsh-log/` and
-`src/inputs/dsh/dsh-event-transform.ts` in the collector, landed first.
-
-**6. Mirror the proven plugin export shape.**
-
-The collector's tap uses `export default function apply(ctx) { … }` and that form has been validated
-against a real `dsh` run. Use the same shape rather than switching to the object-plugin form
-(`export const name` + `export function apply`) without testing it.
-
-## Two additions the ported code needs
-
-**A duplicate-load guard.** The same tap can be loaded twice through two independent paths: the
-collector writes a marked block into the machine-wide `~/.dsh/cordis.patch.yml` whose row points at
-a local `file://` path, while a market install adds a profile-level row that points at the npm
-package name. Those are two different module specifiers, so a module-scoped flag will not catch it —
-use a process-wide marker such as `globalThis[Symbol.for('...')]`, and make the second load a
-warning plus a no-op. Without this, both instances append to the same per-session file: duplicate
-`(sid, seq)` lines, and token usage counted twice downstream.
-
-**A collector-absent hint.** Someone installing from the plugin market usually does not have the
-collector yet. The plugin will faithfully record events that nothing consumes, which reads as "I
-installed it and nothing happened". Detect the collector (its data directory or its command) and, if
-missing, log one line — once, not per session — naming the output directory and the collector's
-install command.
-
-## Verifying a change locally
+Use Node.js 22.19 or newer:
 
 ```sh
-dsh plugin --profile web add /path/to/pilot-dsh   # or the published package name
-dsh web
+pnpm install
+pnpm run check
+pnpm test
+pnpm run build
+pnpm pack
 ```
 
-Then confirm:
+Tests must cover both successful and failed paths. At minimum, changes to lifecycle mapping should
+verify parent/child IDs, a single trace ID, retry/error status, token accounting, privacy-off
+behavior, and provider shutdown. Transport changes must retain the local HTTP test that receives
+non-empty protobuf requests on `/v1/traces` and `/v1/metrics`.
 
-- the plugin logs that it loaded, and the log directory exists with mode `0700`
-- `~/.loongsuite-pilot/logs/dsh/dsh-<sid>.jsonl` grows during a session, files are `0600`
-- no duplicate `(sid, seq)` lines when the collector is also installed
-- keys matching `TOKEN` / `SECRET` / `PASSWORD` / `CREDENTIAL` / `COOKIE` / `API_KEY` never appear
-- `dsh plugin --profile web remove …` leaves no residue
+Before submitting a release change, install the packed tarball into an isolated current DSH
+profile, inspect `dsh --profile <name> --dump-config`, and confirm the package activates without
+peer-dependency errors or required install-script approvals attributable to this plugin.
 
-A long session is worth one explicit check: the tap records every event including all assistant
-chunks, so watch how fast the JSONL grows and confirm the numbers you report to users.
+## Publishing and market submission
 
-## Registry submission (after the first npm release)
+Before the first npm release:
 
-Listing in [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) is what
-makes the plugin installable from the in-harness market, and it is a pull request that adds one line
-to **both** `README.md` and `README.zh.md`, under `Development & Runtime` / `开发与运行时`:
+1. Run `pnpm run check`, `pnpm test`, and `pnpm pack` from a clean checkout.
+2. Inspect the tarball: it should contain built `dist/`, the bundle patch, package metadata,
+   license, and both READMEs, but not source tests or `node_modules`.
+3. Verify the package with both the `web` and `headless` DSH profiles.
+4. Publish `@loongsuite/dsh-plugin-loongsuite` with public access.
+5. Add the repository to the DSH community plugin registry/market and add the `dsh-plugin` GitHub
+   topic, following the registry's current contribution instructions.
 
-```markdown
-- [loongsuite/pilot-dsh](https://github.com/loongsuite/pilot-dsh) - Description ending with a period.
-```
-
-The URL is the key that joins the two language files, so it has to match character for character or
-their build fails. Descriptions state what the plugin does — the list rejects superlatives and
-marketing. The repository also needs the `dsh-plugin` topic, which should be added once
-`package.json` exists: the ecosystem's automated scanner treats a repository carrying that topic
-without a plugin manifest as a non-plugin.
-
-## Reporting problems
-
-Open an issue here for anything about this plugin. Questions about the collector's event schema,
-exporters, or dashboard belong in
-[alibaba/loongsuite-pilot](https://github.com/alibaba/loongsuite-pilot/issues); questions about the
-harness itself belong in its
-[GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) — that project has
-issues disabled and does not accept external pull requests.
+Keep English and Chinese user-facing documentation behaviorally equivalent. Harness questions
+belong in the [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions);
+plugin defects belong in this repository.
