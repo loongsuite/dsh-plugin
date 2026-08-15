@@ -20,7 +20,7 @@ describe('DSH bundle contract', () => {
     expect(manifest.dependencies).toHaveProperty('@loongsuite/otel-util-genai')
     expect(manifest.dependencies).not.toHaveProperty('@loongsuite/opentelemetry-util-genai')
     expect(patch).toContain('id: loongsuite-observability')
-    expect(patch).toContain("name: '@loongsuite/dsh-plugin-loongsuite'")
+    expect(patch).toContain("name: '@loongsuite/dsh-plugin'")
     expect(patch).not.toContain('loongsuite-pilot-observability')
   })
 })

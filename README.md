@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-`@loongsuite/dsh-plugin-loongsuite` is a standalone, open-source observability plugin for
+`@loongsuite/dsh-plugin` is a standalone, open-source observability plugin for
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`). It observes DSH's native
 session, agent loop, LLM stream, and tool lifecycle, converts them into OpenTelemetry GenAI traces
 and metrics, and exports standard OTLP/HTTP protobuf to any compatible backend.
@@ -11,7 +11,7 @@ LoongSuite is Alibaba's open-source unified observability collection ecosystem. 
 its native DSH integration: despite the repository name, the plugin does **not** depend on or
 require LoongSuite Pilot, a sidecar, a local JSONL tap, or an Alibaba backend.
 
-> Status: beta release. Install the npm beta with `@loongsuite/dsh-plugin-loongsuite@beta`. The DSH market
+> Status: beta release. Install the npm beta with `@loongsuite/dsh-plugin@beta`. The DSH market
 > listing has not been published yet.
 
 ## Data model
@@ -70,8 +70,8 @@ runtime compatibility.
 During the beta, add the beta tag to every DSH profile you want to observe:
 
 ```sh
-dsh plugin --profile web add @loongsuite/dsh-plugin-loongsuite@beta
-dsh plugin --profile headless add @loongsuite/dsh-plugin-loongsuite@beta
+dsh plugin --profile web add @loongsuite/dsh-plugin@beta
+dsh plugin --profile headless add @loongsuite/dsh-plugin@beta
 ```
 
 For local development, replace the package name with the checkout path:

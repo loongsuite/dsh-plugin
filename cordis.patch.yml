@@ -2,4 +2,4 @@
 # its OTLP pipeline and does not require LoongSuite Pilot or an on-disk tap.
 - insert:
     - id: loongsuite-observability
-      name: '@loongsuite/dsh-plugin-loongsuite'
+      name: '@loongsuite/dsh-plugin'

@@ -1,5 +1,5 @@
 {
-  "name": "@loongsuite/dsh-plugin-loongsuite",
+  "name": "@loongsuite/dsh-plugin",
   "version": "0.1.0-beta.1",
   "description": "Standalone OpenTelemetry GenAI observability plugin for DeepSeek Harness",
   "type": "module",
@@ -44,6 +44,7 @@
   "keywords": [
     "deepseek-harness",
     "dsh",
+    "dsh-plugin",
     "opentelemetry",
     "otel",
     "otlp",

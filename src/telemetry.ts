@@ -27,7 +27,7 @@ import { ExtendedTelemetryHandler } from '@loongsuite/otel-util-genai'
 import type { Config } from './config.js'
 import { VERSION } from './version.js'
 
-const INSTRUMENTATION_NAME = '@loongsuite/dsh-plugin-loongsuite'
+const INSTRUMENTATION_NAME = '@loongsuite/dsh-plugin'
 
 export interface TelemetryPipeline {
   handler: ExtendedTelemetryHandler

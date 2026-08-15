@@ -13,7 +13,7 @@ Resolved by `@loongsuite/otel-util-genai@0.1.1`, published with the following pe
 }
 ```
 
-`@loongsuite/dsh-plugin-loongsuite` was upgraded to `^0.1.1`. A packed plugin was installed with pnpm in a
+`@loongsuite/dsh-plugin` was upgraded to `^0.1.1`. A packed plugin was installed with pnpm in a
 clean consumer project against `@opentelemetry/sdk-trace-base@2.10.0`; dependency resolution
 selected SDK `0.1.1`, reused the consumer's OTel `2.10.0` peer, and emitted no peer dependency
 warning.
@@ -21,7 +21,7 @@ warning.
 ## Request
 
 Please publish a new `@loongsuite/otel-util-genai` version that officially supports the
-OpenTelemetry 2.x trace SDK used by `@loongsuite/dsh-plugin-loongsuite`.
+OpenTelemetry 2.x trace SDK used by `@loongsuite/dsh-plugin`.
 
 The DSH plugin currently uses one coherent OpenTelemetry 2.10 stack:
 
@@ -105,12 +105,12 @@ must no longer emit an unmet peer warning.
 - A new `@loongsuite/otel-util-genai` version is published.
 - OTel 1.30 compatibility is retained if the published peer range still declares it.
 - OTel 2.10 trace and metric behavior is covered by CI.
-- `@loongsuite/dsh-plugin-loongsuite` can install its OTel 2.10 stack without peer dependency warnings.
+- `@loongsuite/dsh-plugin` can install its OTel 2.10 stack without peer dependency warnings.
 - No global TracerProvider or MeterProvider is registered by the SDK.
 
 ## Consumer follow-up
 
-After the SDK release, `@loongsuite/dsh-plugin-loongsuite` should upgrade its SDK dependency, refresh the
+After the SDK release, `@loongsuite/dsh-plugin` should upgrade its SDK dependency, refresh the
 lockfile, rerun its checks/tests/build, and repeat a clean `dsh plugin add` installation.
 
 Do not use package-manager peer warning suppression as the final fix: it only hides the warning for

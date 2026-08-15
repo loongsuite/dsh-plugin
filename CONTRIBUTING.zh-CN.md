@@ -64,7 +64,7 @@ pnpm pack
 2. 检查 tarball：应包含构建后的 `dist/`、bundle patch、package 元数据、许可证和两份 README，不能
    包含源码测试或 `node_modules`。
 3. 分别使用 DSH 的 `web` 与 `headless` profile 验证包。
-4. 以 public access 发布 `@loongsuite/dsh-plugin-loongsuite`。
+4. 以 public access 发布 `@loongsuite/dsh-plugin`。
 5. 按社区仓库当时的贡献说明，将本仓库提交到 DSH 插件列表/市场，并添加 `dsh-plugin` GitHub topic。
 
 中英文用户文档应保持行为含义一致。Harness 本身的问题请到

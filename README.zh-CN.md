@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-`@loongsuite/dsh-plugin-loongsuite` 是面向
+`@loongsuite/dsh-plugin` 是面向
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）的独立开源可观测
 插件。它观测 DSH 原生的会话、Agent 循环、LLM 流和工具生命周期，将其转换为 OpenTelemetry
 GenAI Trace 与 Metric，并通过标准 OTLP/HTTP Protobuf 上报到任意兼容后端。
@@ -10,7 +10,7 @@ GenAI Trace 与 Metric，并通过标准 OTLP/HTTP Protobuf 上报到任意兼�
 LoongSuite 是阿里开源的统一可观测采集体系。本仓库是它面向 DSH 的原生集成；尽管仓库名称如此，
 插件**不依赖也不要求安装 LoongSuite Pilot**，不需要 sidecar、本地 JSONL 采集点或阿里云后端。
 
-> 当前状态：Beta 版本。可通过 `@loongsuite/dsh-plugin-loongsuite@beta` 安装 npm Beta 包；DSH 插件市场
+> 当前状态：Beta 版本。可通过 `@loongsuite/dsh-plugin@beta` 安装 npm Beta 包；DSH 插件市场
 > 条目尚未发布。
 
 ## 数据模型
@@ -66,8 +66,8 @@ bundle 能成功组合就宣称具备完整运行时兼容性。
 Beta 阶段，在需要观测的每个 DSH profile 中安装 beta tag：
 
 ```sh
-dsh plugin --profile web add @loongsuite/dsh-plugin-loongsuite@beta
-dsh plugin --profile headless add @loongsuite/dsh-plugin-loongsuite@beta
+dsh plugin --profile web add @loongsuite/dsh-plugin@beta
+dsh plugin --profile headless add @loongsuite/dsh-plugin@beta
 ```
 
 本地开发时，把包名换成本仓库的绝对路径：

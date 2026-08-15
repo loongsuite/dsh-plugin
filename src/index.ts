@@ -1,7 +1,7 @@
 /**
  * Standalone LoongSuite OpenTelemetry instrumentation for DeepSeek Harness.
  *
- * @module @loongsuite/dsh-plugin-loongsuite
+ * @module @loongsuite/dsh-plugin
  */
 
 import type { Context } from '@deepseek-ai/cordis'

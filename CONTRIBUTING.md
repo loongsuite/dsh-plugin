@@ -68,7 +68,7 @@ Before the first npm release:
 2. Inspect the tarball: it should contain built `dist/`, the bundle patch, package metadata,
    license, and both READMEs, but not source tests or `node_modules`.
 3. Verify the package with both the `web` and `headless` DSH profiles.
-4. Publish `@loongsuite/dsh-plugin-loongsuite` with public access.
+4. Publish `@loongsuite/dsh-plugin` with public access.
 5. Add the repository to the DSH community plugin registry/market and add the `dsh-plugin` GitHub
    topic, following the registry's current contribution instructions.
 
