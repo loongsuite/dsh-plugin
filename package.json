@@ -1,6 +1,6 @@
 {
   "name": "@loongsuite/dsh-plugin",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "Standalone OpenTelemetry GenAI observability plugin for DeepSeek Harness",
   "type": "module",
   "main": "./dist/index.js",

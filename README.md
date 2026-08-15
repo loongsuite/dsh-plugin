@@ -8,8 +8,8 @@ session, agent loop, LLM stream, and tool lifecycle, converts them into OpenTele
 and metrics, and exports standard OTLP/HTTP protobuf to any compatible backend.
 
 LoongSuite is Alibaba's open-source unified observability collection ecosystem. This repository is
-its native DSH integration: despite the repository name, the plugin does **not** depend on or
-require LoongSuite Pilot, a sidecar, a local JSONL tap, or an Alibaba backend.
+its native DSH integration. The plugin does **not** depend on or require LoongSuite Pilot, a
+sidecar, a local JSONL tap, or an Alibaba backend.
 
 > Status: beta release. Install the npm beta with `@loongsuite/dsh-plugin@beta`. The DSH market
 > listing has not been published yet.

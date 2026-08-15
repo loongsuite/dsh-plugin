@@ -7,8 +7,8 @@
 插件。它观测 DSH 原生的会话、Agent 循环、LLM 流和工具生命周期，将其转换为 OpenTelemetry
 GenAI Trace 与 Metric，并通过标准 OTLP/HTTP Protobuf 上报到任意兼容后端。
 
-LoongSuite 是阿里开源的统一可观测采集体系。本仓库是它面向 DSH 的原生集成；尽管仓库名称如此，
-插件**不依赖也不要求安装 LoongSuite Pilot**，不需要 sidecar、本地 JSONL 采集点或阿里云后端。
+LoongSuite 是阿里开源的统一可观测采集体系。本仓库是它面向 DSH 的原生集成。插件**不依赖也不要求
+安装 LoongSuite Pilot**，不需要 sidecar、本地 JSONL 采集点或阿里云后端。
 
 > 当前状态：Beta 版本。可通过 `@loongsuite/dsh-plugin@beta` 安装 npm Beta 包；DSH 插件市场
 > 条目尚未发布。
