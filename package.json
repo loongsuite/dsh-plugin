@@ -1,0 +1,40 @@
+{
+  "name": "dsh-plugin-loongsuite",
+  "version": "0.1.0",
+  "description": "Local DeepSeek Harness event tap for LoongSuite Pilot",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "index.mjs",
+  "files": [
+    "index.mjs",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loongsuite/pilot-dsh.git"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "loongsuite",
+    "opentelemetry",
+    "observability"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

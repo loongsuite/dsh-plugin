@@ -2,9 +2,9 @@
 
 English | [简体中文](CONTRIBUTING.zh-CN.md)
 
-Thanks for helping build this plugin. The repository is intentionally small: one Cordis plugin, one
-patch file, one manifest. Most of the difficulty is in the constraints below rather than in the
-code, so please read them before implementing.
+Thanks for helping maintain this plugin. The repository is intentionally small: one Cordis plugin,
+one patch file, one manifest. Read these interoperability and packaging requirements before
+changing the implementation.
 
 ## Hard requirements
 
@@ -67,21 +67,22 @@ The collector's tap uses `export default function apply(ctx) { … }` and that f
 against a real `dsh` run. Use the same shape rather than switching to the object-plugin form
 (`export const name` + `export function apply`) without testing it.
 
-## Two additions the ported code needs
+## Required integration behavior
 
-**A duplicate-load guard.** The same tap can be loaded twice through two independent paths: the
+**Keep the duplicate-load guard aligned.** The same tap can be loaded twice through two independent paths: the
 collector writes a marked block into the machine-wide `~/.dsh/cordis.patch.yml` whose row points at
 a local `file://` path, while a market install adds a profile-level row that points at the npm
-package name. Those are two different module specifiers, so a module-scoped flag will not catch it —
-use a process-wide marker such as `globalThis[Symbol.for('...')]`, and make the second load a
-warning plus a no-op. Without this, both instances append to the same per-session file: duplicate
-`(sid, seq)` lines, and token usage counted twice downstream.
+package name. Those are two different module specifiers, so a module-scoped flag will not catch it.
+Both this package and the collector-managed copy must use the same process-wide marker through
+`globalThis[Symbol.for('...')]`; the second load logs a warning and registers no listeners. Without
+the shared marker, both instances append to the same per-session file, producing duplicate
+`(sid, seq)` lines and double-counted token usage.
 
-**A collector-absent hint.** Someone installing from the plugin market usually does not have the
+**Keep the collector-absent hint.** Someone installing from the plugin market usually does not have the
 collector yet. The plugin will faithfully record events that nothing consumes, which reads as "I
-installed it and nothing happened". Detect the collector (its data directory or its command) and, if
-missing, log one line — once, not per session — naming the output directory and the collector's
-install command.
+installed it and nothing happened". The plugin detects the collector by its data directory or
+command and, when missing, logs one line per plugin load that names the output directory and the
+collector install command.
 
 ## Verifying a change locally
 

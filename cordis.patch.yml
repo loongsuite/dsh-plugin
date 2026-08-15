@@ -1,0 +1,3 @@
+- insert:
+    - id: loongsuite-pilot-observability
+      name: dsh-plugin-loongsuite

@@ -6,9 +6,8 @@ The [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) 
 [LoongSuite Pilot](https://github.com/alibaba/loongsuite-pilot) — published to npm as
 `dsh-plugin-loongsuite`.
 
-> **Status: scaffolding.** This repository currently holds only project metadata. The plugin
-> implementation has not landed yet — see [Planned layout](#planned-layout) and
-> [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
+> **Status: prerelease.** The plugin is implemented and can be installed from a local checkout.
+> The npm package has not been published yet.
 
 ## What it does
 
@@ -31,8 +30,13 @@ dependencies, and keeps the collector's lifecycle independent of any single `dsh
 
 ## Install
 
-> Not published yet. These commands will work once the implementation and the first npm release
-> land; they are recorded here so the interface is decided up front.
+Until the first npm release, install a local checkout:
+
+```sh
+dsh plugin --profile web add /path/to/pilot-dsh
+```
+
+After publication, the package install is:
 
 ```sh
 dsh plugin --profile web add dsh-plugin-loongsuite
@@ -52,19 +56,21 @@ discoverable and installable from inside the harness — via
 [dsh-market](https://github.com/dsh-market/dsh-market) plugin market — without requiring the
 collector to be present first.
 
-## Planned layout
+## Repository layout
 
 | Path | Purpose |
 | --- | --- |
 | `package.json` | Must declare `dsh.bundle` pointing at `./cordis.patch.yml`. Without it, `dsh plugin add` cannot install the package and the plugin cannot be listed in awesome-dsh-plugin. |
 | `cordis.patch.yml` | The configuration layer applied when a profile enables this bundle. Its row `id` **must** be `loongsuite-pilot-observability`. |
 | `index.mjs` | The plugin entry — a Cordis plugin that registers the two listeners and appends to JSONL. Zero runtime dependencies, no build step, no install scripts. |
+| `test/plugin.test.mjs` | Node built-in tests for file format, permissions, redaction, duplicate loading, collector detection, and write-failure isolation. |
 
-The behavior to port lives in
+The event format matches
 [`assets/plugins/dsh/plugin.mjs`](https://github.com/alibaba/loongsuite-pilot/blob/main/assets/plugins/dsh/plugin.mjs)
-in the collector repository, which has been validated against a real `dsh` run. Two additions are
-required here and are described in [CONTRIBUTING.md](CONTRIBUTING.md): a duplicate-load guard, and
-a hint pointing users to the collector when it is absent.
+in the collector repository. A process-wide guard prevents plugin copies that use the same shared
+marker from recording the same event twice. When the collector is absent, the plugin logs one
+installation hint. Event-file write failures are reported and contained after the plugin has
+loaded, so observability cannot interrupt a session.
 
 ## Data and privacy
 
@@ -78,7 +84,7 @@ a hint pointing users to the collector when it is absent.
   payloads. This is what makes traces useful, and it is also why the files are local-only and
   mode-restricted. Content-capture policy and secret masking on export are configured in the
   collector — see its [masking guide](https://github.com/alibaba/loongsuite-pilot/blob/main/docs/masking.md).
-- **Not on the harness telemetry seam.** This plugin listens to the event bus instead of
+- **Not registered as a harness telemetry backend.** This plugin listens to the event bus instead of
   registering as the harness's `sessionTelemetry` backend. It therefore coexists with telemetry
   backends such as the official OTLP-logs one, but it does not appear in the harness's own sharing
   disclosure. Treat this document as the disclosure.
