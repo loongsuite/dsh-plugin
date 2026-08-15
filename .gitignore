@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# npm artifacts
+*.tgz
+npm-debug.log*
+pnpm-debug.log*
+.npmrc
+
+# local runtime / test output
+*.jsonl
+coverage/
+.tmp/
+
+# editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
