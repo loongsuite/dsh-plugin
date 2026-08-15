@@ -35,11 +35,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/loongsuite/pilot-dsh.git"
+    "url": "git+https://github.com/loongsuite/dsh-plugin.git"
   },
-  "homepage": "https://github.com/loongsuite/pilot-dsh#readme",
+  "homepage": "https://github.com/loongsuite/dsh-plugin#readme",
   "bugs": {
-    "url": "https://github.com/loongsuite/pilot-dsh/issues"
+    "url": "https://github.com/loongsuite/dsh-plugin/issues"
   },
   "keywords": [
     "deepseek-harness",

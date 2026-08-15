@@ -77,7 +77,7 @@ dsh plugin --profile headless add @loongsuite/dsh-plugin@beta
 For local development, replace the package name with the checkout path:
 
 ```sh
-dsh plugin --profile web add /absolute/path/to/pilot-dsh
+dsh plugin --profile web add /absolute/path/to/dsh-plugin
 ```
 
 Set a service name and an OTLP/HTTP collector endpoint, then start that profile normally:

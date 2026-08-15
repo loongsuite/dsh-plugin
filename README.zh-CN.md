@@ -73,7 +73,7 @@ dsh plugin --profile headless add @loongsuite/dsh-plugin@beta
 本地开发时，把包名换成本仓库的绝对路径：
 
 ```sh
-dsh plugin --profile web add /absolute/path/to/pilot-dsh
+dsh plugin --profile web add /absolute/path/to/dsh-plugin
 ```
 
 设置服务名和 OTLP/HTTP Collector 地址，然后照常启动该 profile：
