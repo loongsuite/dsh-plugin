@@ -11,8 +11,17 @@ LoongSuite is Alibaba's open-source unified observability collection ecosystem. 
 its native DSH integration. The plugin does **not** depend on or require LoongSuite Pilot, a
 sidecar, a local JSONL tap, or an Alibaba backend.
 
-> Status: beta release. Install the npm beta with `@loongsuite/dsh-plugin@beta`. The DSH market
-> listing has not been published yet.
+> Status: beta release. Install the npm beta with `@loongsuite/dsh-plugin@beta`. The plugin is
+> listed in the community registry, so it can also be installed from the DSH plugin market.
+
+<p align="center">
+  <img src="docs/assets/langfuse-trace.png" alt="One DeepSeek Harness turn as an OpenTelemetry GenAI trace, viewed in self-hosted Langfuse" width="900">
+  <br>
+  <em>One DSH turn exported over OTLP into self-hosted Langfuse: four react steps, per-call latency
+  and token counts, a failed <code>web_search</code> followed by <code>bash</code> fallbacks, and the
+  ENTRY span's GenAI attributes. Content capture was enabled for this capture; it is off by
+  default.</em>
+</p>
 
 ## Data model
 

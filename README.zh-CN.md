@@ -10,8 +10,16 @@ GenAI Trace 与 Metric，并通过标准 OTLP/HTTP Protobuf 上报到任意兼�
 LoongSuite 是阿里开源的统一可观测采集体系。本仓库是它面向 DSH 的原生集成。插件**不依赖也不要求
 安装 LoongSuite Pilot**，不需要 sidecar、本地 JSONL 采集点或阿里云后端。
 
-> 当前状态：Beta 版本。可通过 `@loongsuite/dsh-plugin@beta` 安装 npm Beta 包；DSH 插件市场
-> 条目尚未发布。
+> 当前状态：Beta 版本。可通过 `@loongsuite/dsh-plugin@beta` 安装 npm Beta 包；插件已收录进社区
+> 插件列表，也可以从 DSH 插件市场安装。
+
+<p align="center">
+  <img src="docs/assets/langfuse-trace.png" alt="DSH 的一轮对话作为 OpenTelemetry GenAI 调用链，在自建 Langfuse 中查看" width="900">
+  <br>
+  <em>一轮 DSH 对话通过 OTLP 上报到自建 Langfuse：4 个 react step、每次调用的耗时与 token、
+  <code>web_search</code> 失败后回退到 <code>bash</code>，以及 ENTRY span 上的 GenAI 语义属性。
+  该截图显式开启了正文采集，默认是关闭的。</em>
+</p>
 
 ## 数据模型
 
