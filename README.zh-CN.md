@@ -138,7 +138,7 @@ dsh --profile web
 | `resourceAttributes` | `{}` | 额外的字符串类型 Resource 属性。 |
 | `captureContent` | 环境变量配置或 `false` | 上报提示词、回复、工具定义、参数和结果正文。 |
 | `contentMaxChars` | `128000` | 每个正文属性序列化后保留的最大字符数。 |
-| `exportMetrics` | `true` | 上报 LLM 耗时和 token 指标。 |
+| `exportMetrics` | 环境变量配置或 `true` | 上报 LLM 耗时和 token 指标。 |
 | `maxExportBatchSize` | `512` | 每批最多上报的 span 数。 |
 | `maxQueueSize` | `2048` | 最多排队的 span 数，不能小于 batch size。 |
 | `traceExportIntervalMs` | `5000` | Trace 批量导出间隔。 |
@@ -155,6 +155,7 @@ dsh --profile web
 - `OTEL_SERVICE_NAME`
 - `OTEL_RESOURCE_ATTRIBUTES`
 - `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`（未显式配置 `captureContent` 时，`SPAN_ONLY` 或 `SPAN_AND_EVENT` 开启 span 正文）
+- `OTEL_METRICS_EXPORTER`（未显式配置 `exportMetrics` 时，`none` 关闭指标导出）
 
 Header 与 Resource 值使用标准的逗号分隔、百分号编码 `key=value` 格式。
 

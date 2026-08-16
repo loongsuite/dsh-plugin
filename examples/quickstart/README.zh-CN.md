@@ -15,19 +15,11 @@ docker compose -f examples/quickstart/docker-compose.yml up -d
 dsh plugin --profile web add @loongsuite/dsh-plugin@beta
 ```
 
-Jaeger 没有指标端点，所以在 `$DSH_HOME/profiles/web/cordis.patch.yml`（默认 `~/.dsh`）里把指标关掉，
+Jaeger 没有指标端点，所以启动命令里用标准的 `OTEL_METRICS_EXPORTER=none` 把指标关掉，
 否则指标导出会一直打 `/v1/metrics` 然后失败——失败是被隔离的、绝不影响 agent，但会有日志噪音：
 
-```yaml
-- id: loongsuite-observability
-  config:
-    exportMetrics: false
-```
-
-然后指向 Jaeger 启动这个 profile：
-
 ```sh
-OTEL_SERVICE_NAME=dsh-agent OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 dsh --profile web
+OTEL_SERVICE_NAME=dsh-agent OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 OTEL_METRICS_EXPORTER=none dsh --profile web
 ```
 
 让 agent 做一件需要几步的事——"总结这个仓库并列出它的依赖"就够了——然后打开
@@ -87,7 +79,7 @@ docker compose -f examples/quickstart/docker-compose.yml down
 **想改成发 Langfuse。** endpoint 换成 `http://localhost:3000/api/public/otel`（自建）或
 `https://cloud.langfuse.com/api/public/otel`，并在插件的 `headers` 里加
 `Authorization: Basic $(echo -n "pk-lf-…:sk-lf-…" | base64)` 和
-`x-langfuse-ingestion-version: 4`。`exportMetrics: false` 要保留——Langfuse 的 OTLP 端点只收 trace。
+`x-langfuse-ingestion-version: 4`。`OTEL_METRICS_EXPORTER=none` 要保留——Langfuse 的 OTLP 端点只收 trace。
 
 **要加 collector 吗。** 这套环境不需要。但如果你想把链路分发到多个后端、做采样，或者真的想存指标，
 就在 4318 前面放一个 OpenTelemetry Collector，让它转发到 Jaeger 的 `4317`。

@@ -144,7 +144,7 @@ dsh --profile web
 | `resourceAttributes` | `{}` | Additional string-valued resource attributes. |
 | `captureContent` | environment setting or `false` | Export prompts, responses, tool definitions, arguments, and results. |
 | `contentMaxChars` | `128000` | Maximum serialized characters per captured content attribute. |
-| `exportMetrics` | `true` | Export LLM duration and token metrics. |
+| `exportMetrics` | environment setting or `true` | Export LLM duration and token metrics. |
 | `maxExportBatchSize` | `512` | Maximum spans per export batch. |
 | `maxQueueSize` | `2048` | Maximum queued spans. Must not be smaller than the batch size. |
 | `traceExportIntervalMs` | `5000` | Trace batch delay. |
@@ -161,6 +161,7 @@ Supported standard OpenTelemetry variables are:
 - `OTEL_SERVICE_NAME`
 - `OTEL_RESOURCE_ATTRIBUTES`
 - `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` (`SPAN_ONLY` or `SPAN_AND_EVENT` enables span content when `captureContent` is omitted)
+- `OTEL_METRICS_EXPORTER` (`none` disables metrics when `exportMetrics` is omitted)
 
 Header and resource values use the standard comma-separated, percent-encoded `key=value` syntax.
 

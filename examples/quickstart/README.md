@@ -17,21 +17,13 @@ docker compose -f examples/quickstart/docker-compose.yml up -d
 dsh plugin --profile web add @loongsuite/dsh-plugin@beta
 ```
 
-Jaeger has no metrics endpoint, so turn metrics off in
-`$DSH_HOME/profiles/web/cordis.patch.yml` (`~/.dsh` by default) — otherwise the
-metric exporter keeps failing against `/v1/metrics`. The failures are isolated
-and never affect the agent, but they are noise:
-
-```yaml
-- id: loongsuite-observability
-  config:
-    exportMetrics: false
-```
-
-Then start the profile pointed at Jaeger:
+Jaeger has no metrics endpoint, so the start command turns metrics off with
+the standard `OTEL_METRICS_EXPORTER=none` — otherwise the metric exporter keeps
+failing against `/v1/metrics`. The failures are isolated and never affect the
+agent, but they are noise:
 
 ```sh
-OTEL_SERVICE_NAME=dsh-agent OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 dsh --profile web
+OTEL_SERVICE_NAME=dsh-agent OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 OTEL_METRICS_EXPORTER=none dsh --profile web
 ```
 
 Ask the agent to do something that takes a few steps — "summarize this
@@ -100,7 +92,7 @@ to the last command.
 `https://cloud.langfuse.com/api/public/otel`, and add
 `Authorization: Basic $(echo -n "pk-lf-…:sk-lf-…" | base64)` plus
 `x-langfuse-ingestion-version: 4` to the plugin's `headers`. Keep
-`exportMetrics: false` — Langfuse's OTLP endpoint accepts traces only.
+`OTEL_METRICS_EXPORTER=none` — Langfuse's OTLP endpoint accepts traces only.
 
 **Adding a collector.** Nothing here needs one, but if you want to fan traces
 out to several backends, sample, or actually store metrics, put an

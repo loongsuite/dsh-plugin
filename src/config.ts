@@ -21,7 +21,7 @@ export interface Config {
   /** Maximum serialized characters retained for any captured content attribute. */
   contentMaxChars: number
   /** Export GenAI client duration and token metrics in addition to traces. */
-  exportMetrics: boolean
+  exportMetrics?: boolean
   /** Maximum number of spans in one exported batch. */
   maxExportBatchSize: number
   /** Maximum queued spans before the SDK starts dropping new spans. */
@@ -47,7 +47,7 @@ export const Config: z<Config> = z.object({
   resourceAttributes: z.dict(z.string()).default({}),
   captureContent: z.boolean(),
   contentMaxChars: z.number().step(1).min(1).default(128_000),
-  exportMetrics: z.boolean().default(true),
+  exportMetrics: z.boolean(),
   maxExportBatchSize: z.number().step(1).min(1).default(512),
   maxQueueSize: z.number().step(1).min(1).default(2_048),
   traceExportIntervalMs: z.number().step(1).min(1).default(5_000),
@@ -56,6 +56,7 @@ export const Config: z<Config> = z.object({
   debug: z.boolean().default(false),
 })
 
+const METRICS_EXPORTER_ENV = 'OTEL_METRICS_EXPORTER'
 const CONTENT_CAPTURE_ENV = 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT'
 const SPAN_CONTENT_MODES = new Set(['SPAN_ONLY', 'SPAN_AND_EVENT'])
 
@@ -74,4 +75,19 @@ export function resolveCaptureContent(
   if (configured !== undefined) return configured
   const mode = environment[CONTENT_CAPTURE_ENV]?.trim().toUpperCase()
   return mode !== undefined && SPAN_CONTENT_MODES.has(mode)
+}
+
+/**
+ * Resolve the metrics switch.
+ *
+ * An explicit plugin setting always wins. When it is omitted, the standard
+ * `OTEL_METRICS_EXPORTER=none` spelling disables metrics; every other value
+ * keeps the current behaviour because the plugin only ever exports OTLP.
+ */
+export function resolveExportMetrics(
+  configured: boolean | undefined,
+  environment: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (configured !== undefined) return configured
+  return environment[METRICS_EXPORTER_ENV]?.trim().toLowerCase() !== 'none'
 }

@@ -9,6 +9,7 @@ import {
   Config as ConfigSchema,
   type Config as PluginConfig,
   resolveCaptureContent,
+  resolveExportMetrics,
 } from './config.js'
 import { DshTraceCoordinator } from './coordinator.js'
 import type { DshPluginContext } from './dsh-types.js'
@@ -25,6 +26,7 @@ export function apply(ctx: Context, config: Config): void {
   const resolvedConfig = {
     ...config,
     captureContent: resolveCaptureContent(config.captureContent),
+    exportMetrics: resolveExportMetrics(config.exportMetrics),
   }
   if (!resolvedConfig.enabled) {
     dsh.logger.info('[loongsuite-observability] collection is disabled')
