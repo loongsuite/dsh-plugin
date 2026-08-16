@@ -71,6 +71,9 @@ bundle 能成功组合就宣称具备完整运行时兼容性。
 
 ## 安装与使用
 
+手上还没有 OTLP 后端的话，[`examples/quickstart`](examples/quickstart/README.zh-CN.md) 会起一个本地
+Collector 和 Jaeger，三条命令看到第一条调用链。
+
 Beta 阶段，在需要观测的每个 DSH profile 中安装 beta tag：
 
 ```sh

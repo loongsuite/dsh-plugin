@@ -76,6 +76,9 @@ runtime compatibility.
 
 ## Install and run
 
+If you have no OTLP backend yet, [`examples/quickstart`](examples/quickstart/README.md) starts a
+local Collector and Jaeger and gets you a trace in three commands.
+
 During the beta, add the beta tag to every DSH profile you want to observe:
 
 ```sh
