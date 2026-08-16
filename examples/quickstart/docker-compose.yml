@@ -1,12 +1,12 @@
-# Local trace backend for the DSH plugin quickstart: an OpenTelemetry Collector
-# that fans traces into Jaeger and prints metrics to its own log.
+# Local trace backend for the DSH plugin quickstart: Jaeger, and nothing else.
 #
 #   docker compose -f examples/quickstart/docker-compose.yml up -d
 #   docker compose -f examples/quickstart/docker-compose.yml down
 #
-# The plugin talks OTLP/HTTP to the collector on http://localhost:4318, and the
-# Jaeger UI is at http://localhost:16686. Nothing here is meant for production:
-# Jaeger stores traces in memory and everything runs without authentication.
+# Jaeger v2 receives OTLP directly, so no collector is needed: the plugin exports
+# to http://localhost:4318 and the UI is at http://localhost:16686. Traces live
+# in memory and disappear when the container stops. Not meant for production —
+# there is no authentication and no persistence.
 
 services:
   jaeger:
@@ -14,21 +14,7 @@ services:
     container_name: dsh-quickstart-jaeger
     restart: unless-stopped
     ports:
-      # Only the UI is published. Jaeger's own OTLP receivers stay on the compose
-      # network, where the collector reaches them as jaeger:4317.
-      - "16686:16686"
-
-  otel-collector:
-    image: otel/opentelemetry-collector:0.158.0
-    container_name: dsh-quickstart-collector
-    restart: unless-stopped
-    command: ["--config=/etc/otel/config.yaml"]
-    volumes:
-      - ./otel-collector.yaml:/etc/otel/config.yaml:ro
-    ports:
-      # OTLP/HTTP — the endpoint the plugin exports to.
+      # OTLP/HTTP — the endpoint the plugin exports traces to.
       - "4318:4318"
-      # OTLP/gRPC — unused by the plugin, handy for pointing other tools here.
-      - "4317:4317"
-    depends_on:
-      - jaeger
+      # Jaeger UI.
+      - "16686:16686"
