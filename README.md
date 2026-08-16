@@ -7,9 +7,9 @@ English | [简体中文](README.zh-CN.md)
 session, agent loop, LLM stream, and tool lifecycle, converts them into OpenTelemetry GenAI traces
 and metrics, and exports standard OTLP/HTTP protobuf to any compatible backend.
 
-LoongSuite is Alibaba's open-source unified observability collection ecosystem. This repository is
-its native DSH integration. The plugin does **not** depend on or require LoongSuite Pilot, a
-sidecar, a local JSONL tap, or an Alibaba backend.
+LoongSuite is an open-source observability collection ecosystem built on OpenTelemetry. This
+repository is its native DSH integration. The plugin does **not** depend on or require LoongSuite
+Pilot, a sidecar, a local JSONL tap, or any particular vendor's backend.
 
 > Status: beta release. Install the npm beta with `@loongsuite/dsh-plugin@beta`. The plugin is
 > listed in the community registry, so it can also be installed from the DSH plugin market.
