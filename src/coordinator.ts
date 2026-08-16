@@ -142,15 +142,20 @@ function addUsage(total: UsageTotals, usage: DshTokenUsage): void {
   total.cacheWriteTokens += usage.cacheWriteTokens ?? 0
 }
 
+/**
+ * Publish the agent-level totals. `inputTokens` sums DSH's three disjoint
+ * input buckets, because the conventions define the cache counts as subsets of
+ * `gen_ai.usage.input_tokens` — see `applyUsage` in `./mapping.ts` for the
+ * conversion and why it matters.
+ */
 function applyTotals(invocation: InvokeAgentInvocation, totals: UsageTotals): void {
-  invocation.inputTokens = totals.inputTokens
+  invocation.inputTokens = totals.inputTokens + totals.cacheReadTokens + totals.cacheWriteTokens
   invocation.outputTokens = totals.outputTokens
   invocation.usageCacheReadInputTokens = totals.cacheReadTokens
   invocation.usageCacheCreationInputTokens = totals.cacheWriteTokens
-  ;(invocation.attributes ??= {})['gen_ai.usage.total_tokens'] = totals.inputTokens
+  // Already cumulative: adding the cache buckets again would double-count them.
+  ;(invocation.attributes ??= {})['gen_ai.usage.total_tokens'] = invocation.inputTokens
     + totals.outputTokens
-    + totals.cacheReadTokens
-    + totals.cacheWriteTokens
 }
 
 function isVisibleToken(chunk: DshStreamChunk): boolean {

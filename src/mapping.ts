@@ -135,7 +135,26 @@ export function mapFinishReason(reason: DshFinishReason | string | undefined): s
   }
 }
 
-/** Apply DSH's disjoint usage buckets without double-counting reasoning output. */
+/**
+ * Fold DSH's disjoint usage buckets into the GenAI conventions' cumulative
+ * ones, without double-counting reasoning output.
+ *
+ * DSH reports `inputTokens` as *uncached* input only, with cache hits and
+ * cache writes as separate buckets (billed input is the sum of the three;
+ * adapters whose provider folds cache hits into one prompt count, such as
+ * DeepSeek's `prompt_tokens`, subtract them out again). The conventions define
+ * the opposite relationship: `gen_ai.usage.input_tokens` "SHOULD include all
+ * types of input tokens, including cached tokens", and both
+ * `gen_ai.usage.cache_read.input_tokens` and
+ * `gen_ai.usage.cache_creation.input_tokens` "SHOULD be included in" it — so
+ * the cache buckets are subsets, not siblings.
+ *
+ * Passing DSH's uncached count through unchanged therefore understates the
+ * prompt, and any consumer deriving a cache hit rate as
+ * `cache_read / input_tokens` reads above 100% on a warm session. Summing the
+ * three buckets back up here is the conversion the conventions ask an
+ * instrumentation to make.
+ */
 export function applyUsage(
   target: {
     inputTokens?: number | null
@@ -146,7 +165,9 @@ export function applyUsage(
   },
   usage: DshTokenUsage,
 ): void {
-  target.inputTokens = usage.inputTokens
+  const cacheReadTokens = usage.cacheReadTokens ?? 0
+  const cacheWriteTokens = usage.cacheWriteTokens ?? 0
+  target.inputTokens = usage.inputTokens + cacheReadTokens + cacheWriteTokens
   target.outputTokens = usage.outputTokens
   if (usage.cacheReadTokens !== undefined) {
     target.usageCacheReadInputTokens = usage.cacheReadTokens
@@ -155,10 +176,9 @@ export function applyUsage(
     target.usageCacheCreationInputTokens = usage.cacheWriteTokens
   }
   target.attributes ??= {}
-  target.attributes['gen_ai.usage.total_tokens'] = usage.inputTokens
-    + usage.outputTokens
-    + (usage.cacheReadTokens ?? 0)
-    + (usage.cacheWriteTokens ?? 0)
+  // Already cumulative: `inputTokens` carries both cache buckets, so adding
+  // them again here would double-count them.
+  target.attributes['gen_ai.usage.total_tokens'] = target.inputTokens + usage.outputTokens
   if (usage.reasoningTokens !== undefined) {
     target.attributes['gen_ai.usage.reasoning_tokens'] = usage.reasoningTokens
   }

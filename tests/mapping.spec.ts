@@ -79,8 +79,34 @@ describe('DSH → GenAI mapping', () => {
       cacheWriteTokens: 1,
       reasoningTokens: 3,
     })
+    // The conventions define the cache counts as subsets of input_tokens, so
+    // DSH's uncached bucket is summed with both cache buckets: 10 + 2 + 1.
+    expect(target.inputTokens).toBe(13)
+    expect(target.usageCacheReadInputTokens).toBe(2)
+    expect(target.usageCacheCreationInputTokens).toBe(1)
     expect((target.attributes as Record<string, unknown>)['gen_ai.usage.total_tokens']).toBe(18)
     expect((target.attributes as Record<string, unknown>)['gen_ai.usage.reasoning_tokens']).toBe(3)
+  })
+
+  it('keeps the cache buckets within input tokens when the cache serves most of the prompt', () => {
+    // The shape of a warm session: cache reads exceed the uncached remainder.
+    // Reporting DSH's uncached bucket as input_tokens here is what made
+    // consumers compute cache hit rates above 100%.
+    const target: Record<string, unknown> = { attributes: {} }
+    applyUsage(target, { inputTokens: 2458, outputTokens: 697, cacheReadTokens: 7168 })
+    expect(target.inputTokens).toBe(9626)
+    expect(target.usageCacheReadInputTokens).toBe(7168)
+    expect(target.usageCacheReadInputTokens as number).toBeLessThanOrEqual(target.inputTokens as number)
+    expect((target.attributes as Record<string, unknown>)['gen_ai.usage.total_tokens']).toBe(10323)
+  })
+
+  it('leaves input tokens alone when the provider reports no cache buckets', () => {
+    const target: Record<string, unknown> = { attributes: {} }
+    applyUsage(target, { inputTokens: 12, outputTokens: 4 })
+    expect(target.inputTokens).toBe(12)
+    expect(target.usageCacheReadInputTokens).toBeUndefined()
+    expect(target.usageCacheCreationInputTokens).toBeUndefined()
+    expect((target.attributes as Record<string, unknown>)['gen_ai.usage.total_tokens']).toBe(16)
   })
 
   it('replaces oversized content with valid truncation metadata', () => {

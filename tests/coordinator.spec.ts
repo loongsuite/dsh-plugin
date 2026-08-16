@@ -93,9 +93,17 @@ describe('DshTraceCoordinator', () => {
     expect(tool.parentSpanContext?.spanId).toBe(step.spanContext().spanId)
     expect(new Set(finished.map(span => span.spanContext().traceId))).toHaveLength(1)
     expect(llm.status.code).toBe(SpanStatusCode.OK)
-    expect(llm.attributes['gen_ai.usage.input_tokens']).toBe(8)
+    // The fixture bills 8 uncached input tokens plus 2 served from cache, and
+    // the conventions count the cache read inside input_tokens.
+    expect(llm.attributes['gen_ai.usage.input_tokens']).toBe(10)
+    expect(llm.attributes['gen_ai.usage.cache_read.input_tokens']).toBe(2)
     expect(llm.attributes['gen_ai.usage.output_tokens']).toBe(3)
     expect(llm.attributes['gen_ai.usage.total_tokens']).toBe(13)
+    // The agent-level aggregate folds the buckets the same way, so a consumer
+    // gets the same cache ratio whichever span it reads.
+    expect(agent.attributes['gen_ai.usage.input_tokens']).toBe(10)
+    expect(agent.attributes['gen_ai.usage.cache_read.input_tokens']).toBe(2)
+    expect(agent.attributes['gen_ai.usage.total_tokens']).toBe(13)
     expect(llm.attributes['gen_ai.response.time_to_first_token']).toEqual(expect.any(Number))
     expect(llm.attributes[CONTENT_ATTRIBUTES.inputMessages]).toContain('Hello from DSH')
     expect(tool.attributes[CONTENT_ATTRIBUTES.toolArguments]).toContain('a.txt')
