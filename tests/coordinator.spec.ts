@@ -117,6 +117,92 @@ describe('DshTraceCoordinator', () => {
     await pipeline.shutdown()
   })
 
+  it('keeps injected context out of ENTRY and AGENT while retaining the full LLM request', async () => {
+    const config = testConfig({ captureContent: true, exportMetrics: false })
+    const { pipeline, spans } = testPipeline(config)
+    const coordinator = new DshTraceCoordinator(pipeline.handler, config, logger)
+    const current = session('input-boundary-session')
+    const started = Date.now() - 100
+    const direct = message(
+      'user-direct',
+      'user',
+      [{ type: 'text', text: 'direct user prompt' }],
+      { kind: 'user' },
+    )
+    const steering = message(
+      'user-steering',
+      'user',
+      [{ type: 'text', text: 'direct user steering' }],
+      { kind: 'user', rpcId: 'rpc-1' },
+    )
+    const injected = [
+      message(
+        'runtime-context',
+        'user',
+        [{ type: 'text', text: 'injected runtime context' }],
+        { kind: 'plugin', plugin: 'runtime-context', form: 'snapshot' },
+      ),
+      message(
+        'skill-catalog',
+        'user',
+        [{ type: 'text', text: 'injected skill catalog' }],
+        { kind: 'skill-catalog', form: 'catalog' },
+      ),
+      message(
+        'goal-round',
+        'user',
+        [{ type: 'text', text: 'automatic goal continuation' }],
+        { kind: 'goal', goalId: 'goal-1', revision: 1, round: 1 },
+      ),
+      message(
+        'coordinator-relay',
+        'user',
+        [{ type: 'text', text: 'coordinator follow-up' }],
+        { kind: 'coordinator', form: 'relay', senderSessionId: 'parent-1' },
+      ),
+    ]
+    const llmRequest = {
+      ...llmOptions('input-boundary-session'),
+      messages: [direct, ...injected, steering],
+    }
+
+    coordinator.adoptSession(current)
+    coordinator.onSessionEvent(current, event('turn/start', { turn: 1 }, 0, started))
+    for (const [index, input] of [direct, ...injected, steering].entries()) {
+      coordinator.onSessionEvent(current, event('user/message', input, index + 1, started + index + 1))
+    }
+    coordinator.onSessionEvent(current, event('step/start', { turn: 1, step: 1 }, 7, started + 10))
+    await collect(coordinator.interceptLlm(llmRequest, successfulStream))
+    coordinator.onSessionEvent(current, event('step/end', { turn: 1, step: 1 }, 8, Date.now()))
+    coordinator.onSessionEvent(current, event(
+      'turn/end',
+      { turn: 1, reason: { kind: 'completed' } },
+      9,
+      Date.now(),
+    ))
+
+    const finished = spans.getFinishedSpans()
+    const entry = finished.find(span => span.attributes['gen_ai.span.kind'] === 'ENTRY')!
+    const agent = finished.find(span => span.attributes['gen_ai.span.kind'] === 'AGENT')!
+    const llm = finished.find(span => span.attributes['gen_ai.span.kind'] === 'LLM')!
+    const directInputs = [
+      { role: 'user', parts: [{ type: 'text', content: 'direct user prompt' }] },
+      { role: 'user', parts: [{ type: 'text', content: 'direct user steering' }] },
+    ]
+
+    expect(JSON.parse(String(entry.attributes[CONTENT_ATTRIBUTES.inputMessages])))
+      .toEqual(directInputs)
+    expect(JSON.parse(String(agent.attributes[CONTENT_ATTRIBUTES.inputMessages])))
+      .toEqual(directInputs)
+    const llmInputs = JSON.parse(String(llm.attributes[CONTENT_ATTRIBUTES.inputMessages])) as unknown[]
+    expect(llmInputs).toHaveLength(6)
+    expect(llm.attributes[CONTENT_ATTRIBUTES.inputMessages]).toContain('injected runtime context')
+    expect(llm.attributes[CONTENT_ATTRIBUTES.inputMessages]).toContain('injected skill catalog')
+    expect(llm.attributes[CONTENT_ATTRIBUTES.inputMessages]).toContain('automatic goal continuation')
+    expect(llm.attributes[CONTENT_ATTRIBUTES.inputMessages]).toContain('coordinator follow-up')
+    await pipeline.shutdown()
+  })
+
   it('keeps content absent by default', async () => {
     vi.stubEnv('OTEL_SEMCONV_STABILITY_OPT_IN', 'gen_ai_latest_experimental')
     vi.stubEnv('OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', 'SPAN_ONLY')
@@ -127,17 +213,28 @@ describe('DshTraceCoordinator', () => {
     const started = Date.now() - 100
     coordinator.adoptSession(current)
     coordinator.onSessionEvent(current, event('turn/start', { turn: 1 }, 0, started))
-    coordinator.onSessionEvent(current, event('step/start', { turn: 1, step: 1 }, 1, started + 1))
+    coordinator.onSessionEvent(current, event(
+      'user/message',
+      message('private-user', 'user', [{ type: 'text', text: 'private prompt' }], { kind: 'user' }),
+      1,
+      started + 1,
+    ))
+    coordinator.onSessionEvent(current, event('step/start', { turn: 1, step: 1 }, 2, started + 2))
     await collect(coordinator.interceptLlm(llmOptions('privacy-session'), successfulStream))
-    coordinator.onSessionEvent(current, event('step/end', { turn: 1, step: 1 }, 2, Date.now()))
+    coordinator.onSessionEvent(current, event('step/end', { turn: 1, step: 1 }, 3, Date.now()))
     coordinator.onSessionEvent(current, event(
       'turn/end',
       { turn: 1, reason: { kind: 'completed' } },
-      3,
+      4,
       Date.now(),
     ))
 
-    const llm = spans.getFinishedSpans().find(span => span.attributes['gen_ai.span.kind'] === 'LLM')!
+    const finished = spans.getFinishedSpans()
+    const entry = finished.find(span => span.attributes['gen_ai.span.kind'] === 'ENTRY')!
+    const agent = finished.find(span => span.attributes['gen_ai.span.kind'] === 'AGENT')!
+    const llm = finished.find(span => span.attributes['gen_ai.span.kind'] === 'LLM')!
+    expect(entry.attributes).not.toHaveProperty(CONTENT_ATTRIBUTES.inputMessages)
+    expect(agent.attributes).not.toHaveProperty(CONTENT_ATTRIBUTES.inputMessages)
     expect(llm.attributes).not.toHaveProperty(CONTENT_ATTRIBUTES.inputMessages)
     expect(llm.attributes).not.toHaveProperty(CONTENT_ATTRIBUTES.outputMessages)
     await pipeline.shutdown()
