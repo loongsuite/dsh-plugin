@@ -14,7 +14,7 @@ Prerequisites: Docker or Podman with Compose, `dsh`, and Node.js 22.19 or newer.
 ```sh
 docker compose -f examples/quickstart/docker-compose.yml up -d
 
-dsh plugin --profile web add @loongsuite/dsh-plugin@beta
+dsh plugin --profile web add @loongsuite/dsh-plugin
 ```
 
 Jaeger has no metrics endpoint, so the start command turns metrics off with

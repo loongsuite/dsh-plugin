@@ -12,7 +12,7 @@
 ```sh
 docker compose -f examples/quickstart/docker-compose.yml up -d
 
-dsh plugin --profile web add @loongsuite/dsh-plugin@beta
+dsh plugin --profile web add @loongsuite/dsh-plugin
 ```
 
 Jaeger 没有指标端点，所以启动命令里用标准的 `OTEL_METRICS_EXPORTER=none` 把指标关掉，

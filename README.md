@@ -11,8 +11,8 @@ LoongSuite is an open-source observability collection ecosystem built on OpenTel
 repository is its native DSH integration. The plugin does **not** depend on or require LoongSuite
 Pilot, a sidecar, a local JSONL tap, or any particular vendor's backend.
 
-> Status: beta release. Install the npm beta with `@loongsuite/dsh-plugin@beta`. The plugin is
-> listed in the community registry, so it can also be installed from the DSH plugin market.
+> Status: stable `0.1.x` release. Install `@loongsuite/dsh-plugin` from npm or the DSH plugin
+> market.
 
 <p align="center">
   <img src="docs/assets/langfuse-trace.png" alt="One DeepSeek Harness turn as an OpenTelemetry GenAI trace, viewed in self-hosted Langfuse" width="900">
@@ -70,20 +70,20 @@ GenAI invocation construction and semantic attributes are powered by the
 | DeepSeek Harness | `>=0.1.0-rc.6 <0.2.0` | `0.1.0-rc.6` headless and Web profiles |
 | Node.js | `>=22.19.0` | `22.19`, `24.19`, and `25.9` on macOS |
 
-DSH release candidates older than `0.1.0-rc.6` are not supported. The beta is tested against the
-latest published DSH release rather than treating successful bundle composition alone as full
-runtime compatibility.
+DSH release candidates older than `0.1.0-rc.6` are not supported. Each plugin release is tested
+against the latest published DSH version rather than treating successful bundle composition alone
+as full runtime compatibility.
 
 ## Install and run
 
 If you have no OTLP backend yet, [`examples/quickstart`](examples/quickstart/README.md) starts a
-local Collector and Jaeger and gets you a trace in three commands.
+local Jaeger backend and gets you a trace in three commands.
 
-During the beta, add the beta tag to every DSH profile you want to observe:
+Add the plugin to every DSH profile you want to observe:
 
 ```sh
-dsh plugin --profile web add @loongsuite/dsh-plugin@beta
-dsh plugin --profile headless add @loongsuite/dsh-plugin@beta
+dsh plugin --profile web add @loongsuite/dsh-plugin
+dsh plugin --profile headless add @loongsuite/dsh-plugin
 ```
 
 For local development, replace the package name with the checkout path:

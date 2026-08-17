@@ -58,14 +58,17 @@ pnpm pack
 
 ## 发布与市场收录
 
-首次 npm 发布前：
+每次 npm 发布前：
 
-1. 在干净 checkout 中运行 `pnpm run check`、`pnpm test` 和 `pnpm pack`。
+1. 将 `package.json` 与 `src/version.ts` 更新为同一版本，然后在受支持的 Node.js 版本和干净
+   checkout 中运行 `pnpm run release:check`。
 2. 检查 tarball：应包含构建后的 `dist/`、bundle patch、package 元数据、许可证和两份 README，不能
    包含源码测试或 `node_modules`。
-3. 分别使用 DSH 的 `web` 与 `headless` profile 验证包。
-4. 以 public access 发布 `@loongsuite/dsh-plugin`。
-5. 按社区仓库当时的贡献说明，将本仓库提交到 DSH 插件列表/市场，并添加 `dsh-plugin` GitHub topic。
+3. 把这个精确的 tarball 安装进 DSH 最新受支持版本的隔离 `web` 与 `headless` profile，验证插件激活、
+   正常关闭、OTLP trace 与 metric，以及默认不采集正文。
+4. 以 public access 和预期的 npm dist-tag 发布 `@loongsuite/dsh-plugin`。
+5. 为稳定版本创建同版本的 Git tag 和非预发布 GitHub Release。
+6. 确认 DSH 社区插件列表仍能解析 npm 包和安装命令；本仓库已经完成收录并配置了 `dsh-plugin` topic。
 
 中英文用户文档应保持行为含义一致。Harness 本身的问题请到
 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)，插件缺陷请在

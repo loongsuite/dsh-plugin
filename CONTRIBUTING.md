@@ -62,15 +62,18 @@ peer-dependency errors or required install-script approvals attributable to this
 
 ## Publishing and market submission
 
-Before the first npm release:
+Before every npm release:
 
-1. Run `pnpm run check`, `pnpm test`, and `pnpm pack` from a clean checkout.
+1. Update `package.json` and `src/version.ts` to the same version, then run `pnpm run release:check`
+   from a clean checkout on a supported Node.js version.
 2. Inspect the tarball: it should contain built `dist/`, the bundle patch, package metadata,
    license, and both READMEs, but not source tests or `node_modules`.
-3. Verify the package with both the `web` and `headless` DSH profiles.
-4. Publish `@loongsuite/dsh-plugin` with public access.
-5. Add the repository to the DSH community plugin registry/market and add the `dsh-plugin` GitHub
-   topic, following the registry's current contribution instructions.
+3. Install that exact tarball into isolated `web` and `headless` profiles on the latest supported
+   DSH version. Verify activation, clean shutdown, OTLP traces and metrics, and content-off privacy.
+4. Publish `@loongsuite/dsh-plugin` with public access and the intended npm dist-tag.
+5. Create the matching Git tag and non-prerelease GitHub Release for a stable version.
+6. Confirm the DSH community registry still resolves the npm package and install command. The
+   repository is already registered and has the `dsh-plugin` GitHub topic.
 
 Keep English and Chinese user-facing documentation behaviorally equivalent. Harness questions
 belong in the [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions);

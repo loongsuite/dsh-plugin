@@ -10,8 +10,7 @@ GenAI Trace 与 Metric，并通过标准 OTLP/HTTP Protobuf 上报到任意兼�
 LoongSuite 是基于 OpenTelemetry 的开源可观测采集体系。本仓库是它面向 DSH 的原生集成。插件**不依赖也不
 要求安装 LoongSuite Pilot**，不需要 sidecar、本地 JSONL 采集点，也不绑定任何厂商的后端。
 
-> 当前状态：Beta 版本。可通过 `@loongsuite/dsh-plugin@beta` 安装 npm Beta 包；插件已收录进社区
-> 插件列表，也可以从 DSH 插件市场安装。
+> 当前状态：稳定的 `0.1.x` 版本。可从 npm 或 DSH 插件市场安装 `@loongsuite/dsh-plugin`。
 
 <p align="center">
   <img src="docs/assets/langfuse-trace.png" alt="DSH 的一轮对话作为 OpenTelemetry GenAI 调用链，在自建 Langfuse 中查看" width="900">
@@ -66,19 +65,19 @@ GenAI Invocation 构建与语义属性由
 | DeepSeek Harness | `>=0.1.0-rc.6 <0.2.0` | `0.1.0-rc.6` 的 headless 与 Web profile |
 | Node.js | `>=22.19.0` | macOS 上的 `22.19`、`24.19` 和 `25.9` |
 
-不支持早于 `0.1.0-rc.6` 的 DSH RC 版本。Beta 验证以 DSH 当前最新发布版为准，不会仅凭
-bundle 能成功组合就宣称具备完整运行时兼容性。
+不支持早于 `0.1.0-rc.6` 的 DSH RC 版本。每个插件版本都以 DSH 当前最新发布版为准进行验证，
+不会仅凭 bundle 能成功组合就宣称具备完整运行时兼容性。
 
 ## 安装与使用
 
 手上还没有 OTLP 后端的话，[`examples/quickstart`](examples/quickstart/README.zh-CN.md) 会起一个本地
-Collector 和 Jaeger，三条命令看到第一条调用链。
+Jaeger 后端，三条命令看到第一条调用链。
 
-Beta 阶段，在需要观测的每个 DSH profile 中安装 beta tag：
+在需要观测的每个 DSH profile 中安装插件：
 
 ```sh
-dsh plugin --profile web add @loongsuite/dsh-plugin@beta
-dsh plugin --profile headless add @loongsuite/dsh-plugin@beta
+dsh plugin --profile web add @loongsuite/dsh-plugin
+dsh plugin --profile headless add @loongsuite/dsh-plugin
 ```
 
 本地开发时，把包名换成本仓库的绝对路径：
