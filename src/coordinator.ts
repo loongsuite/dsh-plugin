@@ -629,6 +629,10 @@ export class DshTraceCoordinator {
 
   private captureTurnInput(state: SessionState, message: DshMessage): void {
     if (state.turn === undefined) return
+    // DSH also uses user/message for synthetic model-visible context. ENTRY
+    // and AGENT describe the direct turn request; LLM spans retain the full
+    // request, including injected context, from options.messages.
+    if (message.source.kind !== 'user') return
     state.turn.inputs.push(mapInputMessage(message))
   }
 

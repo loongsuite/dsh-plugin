@@ -56,6 +56,11 @@ calls are correlated with their results by DSH call ID. Errors, aborts, incomple
 plugin shutdown close live spans with an error status instead of leaving them open. Subagent
 sessions create their own trace and carry DSH parent-session and delegation attributes.
 
+When content capture is enabled, `ENTRY` and `AGENT` input messages contain only the turn's direct
+`source.kind=user` input. Synthetic DSH context such as runtime snapshots, agent instructions,
+skill catalogs, goals, and coordinator relays remains visible on the `LLM` span as part of the
+complete request actually sent to the model, but is not presented as the user's original input.
+
 The plugin also exports the standard `gen_ai.client.operation.duration` and
 `gen_ai.client.token.usage` metrics. It does not export OpenTelemetry logs; it can coexist with a
 separate DSH log exporter.

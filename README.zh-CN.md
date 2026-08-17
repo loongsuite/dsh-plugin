@@ -52,6 +52,10 @@ ENTRY
 通过 DSH call ID 与结果关联。错误、中止、不完整的流以及插件卸载都会以错误状态关闭未结束 span，不会
 留下悬挂链路。Subagent 会话生成独立 trace，并携带 DSH 父会话和委派层级属性。
 
+开启正文采集时，`ENTRY` 和 `AGENT` 的输入消息只包含本轮 `source.kind=user` 的直接输入。Runtime
+快照、Agent 指令、Skill Catalog、Goal 和 Coordinator relay 等 DSH 合成上下文仍作为实际模型请求的
+一部分完整保留在 `LLM` span 上，但不会被表述为用户原始输入。
+
 插件还会上报标准的 `gen_ai.client.operation.duration` 与 `gen_ai.client.token.usage` 指标。它不
 上报 OpenTelemetry Log，可与独立的 DSH 日志导出插件同时使用。
 
