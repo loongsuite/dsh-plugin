@@ -28,6 +28,9 @@ external collectors, file taps, and vendor-specific ingestion APIs.
   unchanged. Telemetry failures may warn, but must never change DSH model or tool behavior.
 - Build one `ENTRY → AGENT → STEP → LLM/TOOL` tree per live DSH turn. Each retry is a separate LLM
   child; do not infer LLM spans from persisted assistant chunks.
+- Keep captured LLM inputs scoped to events observed in the current turn; never repeat prior-turn
+  conversation history in a later trace. Preserve current-turn tool context across steps, and
+  expose only the final stop response (or last available fallback) on ENTRY and AGENT.
 - Keep OpenTelemetry providers private. Do not call global provider registration APIs.
 - Leave content capture off by default. When `captureContent` is omitted, only the documented
   `SPAN_ONLY` and `SPAN_AND_EVENT` environment modes may enable span content. An explicit

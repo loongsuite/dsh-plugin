@@ -58,8 +58,11 @@ sessions create their own trace and carry DSH parent-session and delegation attr
 
 When content capture is enabled, `ENTRY` and `AGENT` input messages contain only the turn's direct
 `source.kind=user` input. Synthetic DSH context such as runtime snapshots, agent instructions,
-skill catalogs, goals, and coordinator relays remains visible on the `LLM` span as part of the
-complete request actually sent to the model, but is not presented as the user's original input.
+skill catalogs, goals, and coordinator relays remains visible on the `LLM` span, but prior-turn
+conversation history is excluded so every trace contains only its own turn context. Later LLM
+spans in a tool loop retain assistant tool calls and tool results produced earlier in the same
+turn. `ENTRY` and `AGENT` output messages contain only the final `stop` response; a turn that never
+reaches `stop` falls back to its last available assistant message.
 
 The plugin also exports the standard `gen_ai.client.operation.duration` and
 `gen_ai.client.token.usage` metrics. It does not export OpenTelemetry logs; it can coexist with a

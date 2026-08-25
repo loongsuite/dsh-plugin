@@ -207,11 +207,12 @@ export function serializeCaptured(value: unknown, maxChars: number): string {
 
 export function capturedLlmAttributes(
   options: DshGenerateOptions,
+  inputMessages: readonly InputMessage[],
   outputMessages: readonly OutputMessage[],
   maxChars: number,
 ): Record<string, string> {
   return {
-    [CONTENT_ATTRIBUTES.inputMessages]: serializeCaptured(mapInputMessages(options.messages), maxChars),
+    [CONTENT_ATTRIBUTES.inputMessages]: serializeCaptured(inputMessages, maxChars),
     [CONTENT_ATTRIBUTES.outputMessages]: serializeCaptured(outputMessages.map(message => ({
       role: message.role,
       parts: message.parts,
@@ -220,6 +221,19 @@ export function capturedLlmAttributes(
     [CONTENT_ATTRIBUTES.systemInstructions]: serializeCaptured(mapSystemInstruction(options.system), maxChars),
     [CONTENT_ATTRIBUTES.toolDefinitions]: serializeCaptured(mapToolDefinitions(options.tools), maxChars),
   }
+}
+
+/**
+ * Select the one turn-level answer consumers should treat as the agent result.
+ * A normal DSH tool loop emits one or more tool-call assistant messages before
+ * the terminal stop message. Interrupted or failed turns may never reach stop,
+ * so their last available assistant message remains the most useful fallback.
+ */
+export function selectFinalOutputMessages(
+  outputMessages: readonly OutputMessage[],
+): OutputMessage[] {
+  const final = outputMessages.at(-1)
+  return final === undefined ? [] : [final]
 }
 
 export function capturedConversationAttributes(

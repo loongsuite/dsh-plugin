@@ -27,6 +27,8 @@
   但不能改变 DSH 的模型或工具执行行为。
 - 每个 DSH 实时 turn 建立一棵 `ENTRY → AGENT → STEP → LLM/TOOL` 树。每次重试都是独立的 LLM
   子 span，不能从已持久化的 assistant chunk 反推 LLM span。
+- LLM 正文输入只能包含当前 turn 内观测到的事件，后续 trace 不得重复之前 turn 的会话历史；跨 step
+  保留当前 turn 的工具上下文，ENTRY 和 AGENT 只暴露最终 stop 回复（没有 stop 时回退到最后一条输出）。
 - OpenTelemetry Provider 必须私有，不能调用全局 Provider 注册 API。
 - 正文采集默认保持关闭。未配置 `captureContent` 时，只有文档约定的 `SPAN_ONLY` 与
   `SPAN_AND_EVENT` 环境变量模式可以开启 span 正文；显式配置 `captureContent: false` 时必须始终

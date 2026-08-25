@@ -44,6 +44,7 @@ import {
   mapSystemInstruction,
   mapToolDefinitions,
   parseToolArguments,
+  selectFinalOutputMessages,
   serializeCaptured,
 } from './mapping.js'
 
@@ -55,6 +56,7 @@ interface ToolState {
 interface LlmState {
   invocation: LLMInvocation
   options: DshGenerateOptions
+  inputMessages: InputMessage[]
   blocks: Array<{ type: string } & Record<string, unknown>>
   usage?: DshTokenUsage
   ended: boolean
@@ -83,6 +85,7 @@ interface TurnState {
   entry: EntryInvocation
   agent: InvokeAgentInvocation
   step: StepState | undefined
+  contextMessages: DshMessage[]
   inputs: InputMessage[]
   outputs: OutputMessage[]
   usage: UsageTotals
@@ -354,6 +357,7 @@ export class DshTraceCoordinator {
       entry,
       agent,
       step: undefined,
+      contextMessages: [],
       inputs: [],
       outputs: [],
       usage: usageTotals(),
@@ -390,6 +394,13 @@ export class DshTraceCoordinator {
     const step = turn?.step
     if (session === undefined || turn === undefined || step === undefined) return undefined
     const attempt = step.nextAttempt++
+    // DSH's provider request carries the complete session history. A trace is
+    // one turn, so capture only messages observed since this turn/start. This
+    // still grows across steps inside the turn (assistant tool calls and tool
+    // results included) without repeating earlier traces.
+    const inputMessages = this.config.captureContent
+      ? mapInputMessages(turn.contextMessages)
+      : []
     const invocation = createLLMInvocation({
       requestModel: options.model,
       provider: options.provider,
@@ -407,7 +418,7 @@ export class DshTraceCoordinator {
       },
       ...this.config.captureContent
         ? {
-            inputMessages: mapInputMessages(options.messages),
+            inputMessages,
             systemInstruction: mapSystemInstruction(options.system),
             toolDefinitions: mapToolDefinitions(options.tools),
           }
@@ -417,6 +428,7 @@ export class DshTraceCoordinator {
     const llm: LlmState = {
       invocation,
       options,
+      inputMessages,
       blocks: [],
       ended: false,
       firstTokenSeen: false,
@@ -495,7 +507,12 @@ export class DshTraceCoordinator {
       state.invocation.outputMessages = output
       Object.assign(
         state.invocation.attributes ??= {},
-        capturedLlmAttributes(state.options, output, this.config.contentMaxChars),
+        capturedLlmAttributes(
+          state.options,
+          state.inputMessages,
+          output,
+          this.config.contentMaxChars,
+        ),
       )
     }
     return output
@@ -586,8 +603,13 @@ export class DshTraceCoordinator {
     },
     endTime: number,
   ): void {
-    const step = state.turn?.step
-    if (state.turn?.turn !== data.turn || step?.step !== data.step) return
+    const turn = state.turn
+    const step = turn?.step
+    if (turn?.turn !== data.turn || step?.step !== data.step) return
+    // tool/result becomes a model-visible input to the next step of this turn.
+    // It belongs in the trace-local LLM context, but not in the direct
+    // ENTRY/AGENT input list.
+    if (this.config.captureContent) turn.contextMessages.push(data.message)
     const callId = typeof data.message.source.callId === 'string'
       ? data.message.source.callId
       : undefined
@@ -629,9 +651,11 @@ export class DshTraceCoordinator {
 
   private captureTurnInput(state: SessionState, message: DshMessage): void {
     if (state.turn === undefined) return
+    // Every user/message emitted after turn/start belongs to this trace's
+    // model-visible context, including runtime and skill injections.
+    if (this.config.captureContent) state.turn.contextMessages.push(message)
     // DSH also uses user/message for synthetic model-visible context. ENTRY
-    // and AGENT describe the direct turn request; LLM spans retain the full
-    // request, including injected context, from options.messages.
+    // and AGENT describe only the direct human turn request.
     if (message.source.kind !== 'user') return
     state.turn.inputs.push(mapInputMessage(message))
   }
@@ -647,6 +671,7 @@ export class DshTraceCoordinator {
     const finish = active.step?.step === step
       ? active.step.lastFinishReason ?? 'unknown'
       : 'unknown'
+    if (this.config.captureContent) active.contextMessages.push(message)
     active.outputs.push(mapOutputMessage(message, finish))
   }
 
@@ -685,13 +710,14 @@ export class DshTraceCoordinator {
     ;(turn.agent.attributes ??= {})['dsh.turn.end_reason'] = reason.kind
     ;(turn.entry.attributes ??= {})['dsh.turn.end_reason'] = reason.kind
     if (this.config.captureContent) {
+      const finalOutputs = selectFinalOutputMessages(turn.outputs)
       turn.agent.inputMessages = turn.inputs
-      turn.agent.outputMessages = turn.outputs
+      turn.agent.outputMessages = finalOutputs
       turn.entry.inputMessages = turn.inputs
-      turn.entry.outputMessages = turn.outputs
+      turn.entry.outputMessages = finalOutputs
       const captured = capturedConversationAttributes(
         turn.inputs,
-        turn.outputs,
+        finalOutputs,
         this.config.contentMaxChars,
       )
       Object.assign(turn.agent.attributes, captured)
