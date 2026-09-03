@@ -101,6 +101,8 @@ interface InvocationWithSpan {
   attributes?: Record<string, unknown>
 }
 
+const LANGFUSE_COMPLETION_START_TIME = 'langfuse.observation.completion_start_time'
+
 function eventData<T>(event: DshSessionEvent): T {
   return event.data as T
 }
@@ -478,6 +480,10 @@ export class DshTraceCoordinator {
     if (!state.firstTokenSeen && isVisibleToken(chunk)) {
       state.firstTokenSeen = true
       state.invocation.monotonicFirstTokenS = performance.now() / 1_000
+      // Langfuse derives its TTFT column from an absolute completion start
+      // timestamp. Keep the GenAI duration attribute for other OTLP backends,
+      // and add the Langfuse-specific timestamp at the first visible chunk.
+      ;(state.invocation.attributes ??= {})[LANGFUSE_COMPLETION_START_TIME] = new Date().toISOString()
     }
     if (chunk.type === 'block-end') {
       const block = (chunk as { block: { type: string } & Record<string, unknown> }).block
