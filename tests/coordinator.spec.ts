@@ -531,4 +531,37 @@ describe('DshTraceCoordinator', () => {
     coordinator.closeAll()
     await pipeline.shutdown()
   })
+
+  it.each([
+    { label: 'message flag', isError: true, nested: false, error: undefined, status: SpanStatusCode.ERROR },
+    { label: 'legacy block flag', isError: true, nested: true, error: undefined, status: SpanStatusCode.ERROR },
+    {
+      label: 'structured failure', isError: undefined, nested: false,
+      error: { name: 'FsError', code: 'FS_NOT_FOUND' }, status: SpanStatusCode.ERROR,
+    },
+    { label: 'success', isError: false, nested: false, error: undefined, status: SpanStatusCode.OK },
+  ])('exports the tool result status for $label', async ({ isError, nested, error, status }) => {
+    const config = testConfig({ exportMetrics: false })
+    const { pipeline, spans } = testPipeline(config)
+    const coordinator = new DshTraceCoordinator(pipeline.handler, config, logger)
+    const current = session()
+    const content = [{ type: 'text', text: 'tool output' }]
+    const callId = 'call-1'
+    const source = { kind: 'tool', callId }
+    const result = nested
+      ? message('result', 'user', [{ type: 'tool-result', toolCallId: callId, content, isError }], source)
+      : { id: 'result', role: 'tool', source, toolCallId: callId, content, isError }
+    const step = { turn: 1, step: 1 }
+    const start = Date.now()
+    coordinator.onSessionEvent(current, event('turn/start', { turn: 1 }, 0, start))
+    coordinator.onSessionEvent(current, event('step/start', step, 1, start))
+    coordinator.onSessionEvent(current, event('tool/call', { ...step, callId, name: 'read', arguments: '{}' }, 2, start))
+    coordinator.onSessionEvent(current, event('tool/result', { ...step, message: result, error }, 3, start))
+
+    const tool = spans.getFinishedSpans().find(span => span.attributes['gen_ai.span.kind'] === 'TOOL')
+    expect(tool?.status.code).toBe(status)
+    expect(tool?.attributes['error.type']).toBe(error?.code ?? (isError ? 'TOOL_ERROR' : undefined))
+    coordinator.closeAll()
+    await pipeline.shutdown()
+  })
 })

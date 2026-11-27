@@ -19,8 +19,10 @@ export type DshContentBlock =
 
 export interface DshMessage {
   id: string
-  role: 'system' | 'user' | 'assistant'
+  role: 'system' | 'user' | 'assistant' | 'tool'
   content: DshContentBlock[]
+  /** DSH 0.2 tool-result messages carry the outcome on the message itself. */
+  isError?: boolean
   source: {
     kind: string
     provider?: string
