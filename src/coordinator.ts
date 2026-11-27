@@ -635,6 +635,7 @@ export class DshTraceCoordinator {
       )
     }
     const isError = data.error !== undefined
+      || data.message.isError === true
       || (resultBlock?.type === 'tool-result'
         && (resultBlock as { isError?: boolean }).isError === true)
     if (isError) {
