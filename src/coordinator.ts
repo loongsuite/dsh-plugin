@@ -421,7 +421,7 @@ export class DshTraceCoordinator {
       ...this.config.captureContent
         ? {
             inputMessages,
-            systemInstruction: mapSystemInstruction(options.system),
+            systemInstruction: mapSystemInstruction(options),
             toolDefinitions: mapToolDefinitions(options.tools),
           }
         : {},
@@ -515,6 +515,7 @@ export class DshTraceCoordinator {
         state.invocation.attributes ??= {},
         capturedLlmAttributes(
           state.options,
+          state.invocation.systemInstruction ?? [],
           state.inputMessages,
           output,
           this.config.contentMaxChars,

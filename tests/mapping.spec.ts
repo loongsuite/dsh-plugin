@@ -5,12 +5,24 @@ import {
   mapContent,
   mapFinishReason,
   mapInputMessage,
+  mapSystemInstruction,
   parseToolArguments,
   serializeCaptured,
 } from '../src/mapping.js'
-import { message } from './helpers.js'
+import { llmOptions, message } from './helpers.js'
 
 describe('DSH → GenAI mapping', () => {
+  it('keeps a one-shot system prefix ahead of the system message in history', () => {
+    const request = llmOptions()
+    request.messages.unshift(message('system', 'system', [
+      { type: 'text', text: 'session instructions' },
+    ], { kind: 'system-prompt' }))
+    expect(mapSystemInstruction(request)).toEqual([
+      { type: 'text', content: request.system },
+      { type: 'text', content: 'session instructions' },
+    ])
+  })
+
   it('preserves text, reasoning, tool calls, tool results and image metadata', () => {
     const parts = mapContent([
       { type: 'text', text: 'answer' },

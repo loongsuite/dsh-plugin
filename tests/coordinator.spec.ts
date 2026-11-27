@@ -109,6 +109,8 @@ describe('DshTraceCoordinator', () => {
     expect(() => new Date(String(llm.attributes['langfuse.observation.completion_start_time'])).toISOString())
       .not.toThrow()
     expect(llm.attributes[CONTENT_ATTRIBUTES.inputMessages]).toContain('Hello from DSH')
+    expect(JSON.parse(String(llm.attributes[CONTENT_ATTRIBUTES.systemInstructions])))
+      .toEqual([{ type: 'text', content: 'You are a concise assistant.' }])
     expect(tool.attributes[CONTENT_ATTRIBUTES.toolArguments]).toContain('a.txt')
     expect(tool.attributes[CONTENT_ATTRIBUTES.toolResult]).toContain('file')
 
@@ -166,8 +168,15 @@ describe('DshTraceCoordinator', () => {
     ]
     const llmRequest = {
       ...llmOptions('input-boundary-session'),
-      messages: [direct, ...injected, steering],
+      messages: [
+        message('old-system', 'system', [{ type: 'text', text: 'original instructions' }], { kind: 'system-prompt' }),
+        direct,
+        message('new-system', 'system', [{ type: 'text', text: 'updated instructions' }], { kind: 'system-prompt' }),
+        ...injected,
+        steering,
+      ],
     }
+    delete llmRequest.system
 
     coordinator.adoptSession(current)
     coordinator.onSessionEvent(current, event('turn/start', { turn: 1 }, 0, started))
@@ -199,6 +208,8 @@ describe('DshTraceCoordinator', () => {
       .toEqual(directInputs)
     const llmInputs = JSON.parse(String(llm.attributes[CONTENT_ATTRIBUTES.inputMessages])) as unknown[]
     expect(llmInputs).toHaveLength(6)
+    expect(JSON.parse(String(llm.attributes[CONTENT_ATTRIBUTES.systemInstructions])))
+      .toEqual([{ type: 'text', content: 'updated instructions' }])
     expect(llm.attributes[CONTENT_ATTRIBUTES.inputMessages]).toContain('injected runtime context')
     expect(llm.attributes[CONTENT_ATTRIBUTES.inputMessages]).toContain('injected skill catalog')
     expect(llm.attributes[CONTENT_ATTRIBUTES.inputMessages]).toContain('automatic goal continuation')
@@ -412,7 +423,10 @@ describe('DshTraceCoordinator', () => {
       started + 1,
     ))
     coordinator.onSessionEvent(current, event('step/start', { turn: 1, step: 1 }, 2, started + 2))
-    await collect(coordinator.interceptLlm(llmOptions('privacy-session'), successfulStream))
+    const request = llmOptions('privacy-session')
+    delete request.system
+    request.messages.unshift(message('system', 'system', [{ type: 'text', text: 'private instructions' }], { kind: 'system-prompt' }))
+    await collect(coordinator.interceptLlm(request, successfulStream))
     coordinator.onSessionEvent(current, event('step/end', { turn: 1, step: 1 }, 3, Date.now()))
     coordinator.onSessionEvent(current, event(
       'turn/end',
@@ -429,6 +443,7 @@ describe('DshTraceCoordinator', () => {
     expect(agent.attributes).not.toHaveProperty(CONTENT_ATTRIBUTES.inputMessages)
     expect(llm.attributes).not.toHaveProperty(CONTENT_ATTRIBUTES.inputMessages)
     expect(llm.attributes).not.toHaveProperty(CONTENT_ATTRIBUTES.outputMessages)
+    expect(llm.attributes).not.toHaveProperty(CONTENT_ATTRIBUTES.systemInstructions)
     await pipeline.shutdown()
   })
 
