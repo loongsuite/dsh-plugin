@@ -116,8 +116,13 @@ export function mapToolDefinitions(tools: readonly DshToolSchema[] | undefined):
   }))
 }
 
-export function mapSystemInstruction(system: string | undefined): MessagePart[] {
-  return system === undefined || system === '' ? [] : [{ type: 'text', content: system }]
+export function mapSystemInstruction(options: DshGenerateOptions): MessagePart[] {
+  // DSH loop requests carry complete prompt replacements in history. One-shot
+  // requests can also supply a system prefix before their messages.
+  const latest = options.messages.findLast(message => message.role === 'system')
+  const parts = latest ? mapContent(latest.content) : []
+  if (options.system) parts.unshift({ type: 'text', content: options.system })
+  return parts
 }
 
 /** Normalize DSH finish kinds to the stable GenAI spellings used on spans. */
@@ -207,6 +212,7 @@ export function serializeCaptured(value: unknown, maxChars: number): string {
 
 export function capturedLlmAttributes(
   options: DshGenerateOptions,
+  systemInstruction: readonly MessagePart[],
   inputMessages: readonly InputMessage[],
   outputMessages: readonly OutputMessage[],
   maxChars: number,
@@ -218,7 +224,7 @@ export function capturedLlmAttributes(
       parts: message.parts,
       finish_reason: message.finishReason,
     })), maxChars),
-    [CONTENT_ATTRIBUTES.systemInstructions]: serializeCaptured(mapSystemInstruction(options.system), maxChars),
+    [CONTENT_ATTRIBUTES.systemInstructions]: serializeCaptured(systemInstruction, maxChars),
     [CONTENT_ATTRIBUTES.toolDefinitions]: serializeCaptured(mapToolDefinitions(options.tools), maxChars),
   }
 }
